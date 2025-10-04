@@ -236,30 +236,16 @@ jobs:
           
           echo "GPG-signed commit created successfully"
 
-      - name: Get commit SHA for attestation
-        id: get-commit-sha
-        run: |
-          COMMIT_SHA=$(git rev-parse HEAD)
-          echo "sha=$COMMIT_SHA" >> $GITHUB_OUTPUT
-          echo "Commit SHA: $COMMIT_SHA"
-
-      - name: Get initialization date
-        id: get-init-date
-        run: |
-          INIT_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-          echo "date=$INIT_DATE" >> $GITHUB_OUTPUT
-          echo "Initialization date: $INIT_DATE"
-
       - name: Create attestation
         uses: actions/attest@v1
         with:
-          subject-name: ${{ github.repository }}
-          subject-digest: sha256:${{ steps.get-commit-sha.outputs.sha }}
+          subject-path: changelog.txt
           predicate-type: https://github.com/bot-signer/initialization/v1
           predicate: |
             {
               "workflow_run": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
-              "initialization_date": "${{ steps.get-init-date.outputs.date }}",
+              "initialization_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+              "commit_sha": "$(git rev-parse HEAD)",
               "cosign_public_key_path": "cosign.pub",
               "gpg_public_key_path": "pgp.pub",
               "ceremony_log": "changelog.txt"

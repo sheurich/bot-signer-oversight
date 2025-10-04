@@ -232,37 +232,25 @@ The commit is signed using the newly generated GPG key."
 
 #### 4.1.3. Attestation
 
-Create a GitHub attestation linking the cryptographic keys to this workflow run.
-
-**Subject:**
-
-The attestation subject is the SHA256 hash of the **final GPG-signed commit** created in step 4.1.2:
+Create a GitHub attestation for the ceremony log file:
 
 ```bash
-# Get the commit SHA
-COMMIT_SHA=$(git rev-parse HEAD)
-
-# Use GitHub's attestation action
 - uses: actions/attest@v1
   with:
-    subject-name: ${{ github.repository }}
-    subject-digest: sha256:${{ env.COMMIT_SHA }}
+    subject-path: changelog.txt
     predicate-type: https://github.com/bot-signer/initialization/v1
     predicate: |
       {
         "workflow_run": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
         "initialization_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+        "commit_sha": "$(git rev-parse HEAD)",
         "cosign_public_key_path": "cosign.pub",
         "gpg_public_key_path": "pgp.pub",
         "ceremony_log": "changelog.txt"
       }
 ```
 
-**Predicate Structure:**
-
-- **Type**: Custom predicate type identifying this as a bot-signer initialization
-- **Content**: JSON object with workflow run URL, initialization timestamp, and file paths
-- **Purpose**: Creates a verifiable link between the keys and their creation context
+The attestation creates a verifiable link between the ceremony log and the workflow run that created it.
 
 #### 4.1.4. Push
 
