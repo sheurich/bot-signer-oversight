@@ -5,3 +5,11 @@ Workflow Run: https://github.com/sheurich/bot-signer-oversight/actions/runs/1823
 Key Type: Cosign (sigstore)
 Password: Empty (for CI simplicity)
 Public Key: cosign.pub
+---
+Ceremony: GnuPG Root of Trust Initialization
+Date: 2025-10-04 04:55:48 UTC
+Workflow Run: https://github.com/sheurich/bot-signer-oversight/actions/runs/18239847154
+Key Type: Ed25519 (EdDSA)
+Key ID: F98FAEE5480A92A894628D30DC421C1CA627E433
+Expiration: No expiration
+Public Key: pgp.pub
