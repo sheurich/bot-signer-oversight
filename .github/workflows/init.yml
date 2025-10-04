@@ -1,0 +1,168 @@
+name: Initialize Bot Signer
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  attestations: write
+  id-token: write
+
+jobs:
+  init-cosign:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Generate cosign key pair
+        run: |
+          cosign generate-key-pair
+          echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) - Generated cosign key pair" >> changelog.txt
+          echo "Public key fingerprint: $(sha256sum cosign.pub | cut -d' ' -f1)" >> changelog.txt
+        env:
+          COSIGN_PASSWORD: ""
+
+      - name: Store cosign private key as secret
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const privateKey = fs.readFileSync('cosign.key', 'utf8');
+            await github.rest.actions.createOrUpdateRepoSecret({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              secret_name: 'GITHUB_ACTIONS_BOT_COSIGN',
+              encrypted_value: await (async () => {
+                const sodium = require('tweetsodium');
+                const key = await github.rest.actions.getRepoPublicKey({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                });
+                const messageBytes = Buffer.from(privateKey);
+                const keyBytes = Buffer.from(key.data.key, 'base64');
+                const encryptedBytes = sodium.seal(messageBytes, keyBytes);
+                return Buffer.from(encryptedBytes).toString('base64');
+              })()
+            });
+            console.log('Stored cosign private key in GITHUB_ACTIONS_BOT_COSIGN secret');
+
+      - name: Save public key
+        run: |
+          mv cosign.pub key.cosign
+          rm cosign.key
+
+      - name: Configure git for cosign signing
+        run: |
+          git config user.name "github-actions-bot"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Commit cosign ceremony
+        run: |
+          git add changelog.txt key.cosign
+          git commit -m "Initialize cosign key pair
+
+          Cosign ceremony completed at $(date -u +%Y-%m-%dT%H:%M:%SZ)
+          Public key stored in key.cosign
+          Private key stored in GITHUB_ACTIONS_BOT_COSIGN secret"
+
+      - name: Attest cosign ceremony
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-path: |
+            changelog.txt
+            key.cosign
+
+      - name: Push cosign ceremony commit
+        run: git push origin ${{ github.ref_name }}
+
+  init-pgp:
+    runs-on: ubuntu-latest
+    needs: init-cosign
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+
+      - name: Generate GnuPG key pair
+        run: |
+          cat >gpg-key-script <<EOF
+          %no-protection
+          Key-Type: EDDSA
+          Key-Curve: Ed25519
+          Key-Usage: sign
+          Subkey-Type: ECDH
+          Subkey-Curve: Curve25519
+          Subkey-Usage: encrypt
+          Name-Real: github-actions-bot
+          Name-Email: github-actions[bot]@users.noreply.github.com
+          Expire-Date: 0
+          EOF
+          gpg --batch --generate-key gpg-key-script
+          KEY_ID=$(gpg --list-secret-keys --keyid-format LONG github-actions[bot]@users.noreply.github.com | grep sec | awk '{print $2}' | cut -d'/' -f2)
+          echo "KEY_ID=$KEY_ID" >> $GITHUB_ENV
+          echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) - Generated GnuPG key pair (Key ID: $KEY_ID)" >> changelog.txt
+
+      - name: Export keys
+        run: |
+          gpg --armor --export $KEY_ID > key.pub.pgp.asc
+          gpg --armor --export-secret-keys $KEY_ID > private.pgp.asc
+          echo "Public key fingerprint: $(gpg --fingerprint $KEY_ID | grep -oP '[A-F0-9]{4} [A-F0-9]{4} [A-F0-9]{4} [A-F0-9]{4} [A-F0-9]{4}  [A-F0-9]{4} [A-F0-9]{4} [A-F0-9]{4} [A-F0-9]{4} [A-F0-9]{4}')" >> changelog.txt
+
+      - name: Store PGP private key as secret
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const privateKey = fs.readFileSync('private.pgp.asc', 'utf8');
+            await github.rest.actions.createOrUpdateRepoSecret({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              secret_name: 'GITHUB_ACTIONS_BOT_PGP',
+              encrypted_value: await (async () => {
+                const sodium = require('tweetsodium');
+                const key = await github.rest.actions.getRepoPublicKey({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                });
+                const messageBytes = Buffer.from(privateKey);
+                const keyBytes = Buffer.from(key.data.key, 'base64');
+                const encryptedBytes = sodium.seal(messageBytes, keyBytes);
+                return Buffer.from(encryptedBytes).toString('base64');
+              })()
+            });
+            console.log('Stored PGP private key in GITHUB_ACTIONS_BOT_PGP secret');
+
+      - name: Configure git for PGP signing
+        run: |
+          git config user.name "github-actions-bot"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.signingkey $KEY_ID
+          git config commit.gpgsign true
+
+      - name: Commit PGP ceremony
+        run: |
+          rm private.pgp.asc gpg-key-script
+          git add changelog.txt key.pub.pgp.asc
+          git commit -S -m "Initialize GnuPG key pair
+
+          PGP ceremony completed at $(date -u +%Y-%m-%dT%H:%M:%SZ)
+          Public key stored in key.pub.pgp.asc
+          Private key stored in GITHUB_ACTIONS_BOT_PGP secret"
+
+      - name: Attest PGP ceremony
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-path: |
+            changelog.txt
+            key.pub.pgp.asc
+
+      - name: Push PGP ceremony commit
+        run: git push origin ${{ github.ref_name }}
