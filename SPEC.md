@@ -104,8 +104,8 @@ cosign generate-key-pair
 # Load private key into environment variable
 export COSIGN_PRIVATE_KEY=$(cat cosign.key)
 
-# Securely delete the private key file from disk
-shred -vfz -n 5 cosign.key
+# Securely delete the private key file (-u removes it)
+shred -vfzu -n 5 cosign.key
 ```
 
 **Secret Population:**
@@ -196,7 +196,7 @@ gpg --armor --export "$KEY_FPR" > pgp.pub
 # Requires ADMIN_TOKEN for secret write access
 export GH_TOKEN="${{ secrets.ADMIN_TOKEN }}"
 gh secret set PGP_PRIVATE_KEY --body "$(cat pgp.key)"
-shred -vfz -n 5 pgp.key
+shred -vfzu -n 5 pgp.key
 ```
 
 **Ceremony Log:**

@@ -84,16 +84,14 @@ jobs:
         run: |
           set -euo pipefail
           
-          # Securely delete the private key file from disk
-          shred -vfz -n 5 cosign.key
+          shred -vfzu -n 5 cosign.key
           
-          # Verify deletion
           if [ -f cosign.key ]; then
             echo "Error: Failed to securely delete cosign.key"
             exit 1
           fi
           
-          echo "Cosign private key securely deleted from disk"
+          echo "Cosign private key securely deleted"
 
       - name: Create Cosign ceremony log
         run: |
@@ -192,16 +190,14 @@ jobs:
         run: |
           set -euo pipefail
           
-          # Securely delete private key file
-          shred -vfz -n 5 pgp.key
+          shred -vfzu -n 5 pgp.key
           
-          # Verify deletion
           if [ -f pgp.key ]; then
             echo "Error: Failed to securely delete pgp.key"
             exit 1
           fi
           
-          echo "GnuPG private key securely deleted from disk"
+          echo "GnuPG private key securely deleted"
 
       - name: Create GnuPG ceremony log
         run: |
