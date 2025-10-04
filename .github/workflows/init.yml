@@ -253,6 +253,7 @@ jobs:
       - name: Create attestation
         uses: actions/attest@v1
         with:
+          subject-name: ${{ github.repository }}
           subject-digest: sha256:${{ steps.get-commit-sha.outputs.sha }}
           predicate-type: https://github.com/bot-signer/initialization/v1
           predicate: |

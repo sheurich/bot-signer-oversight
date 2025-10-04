@@ -245,6 +245,7 @@ COMMIT_SHA=$(git rev-parse HEAD)
 # Use GitHub's attestation action
 - uses: actions/attest@v1
   with:
+    subject-name: ${{ github.repository }}
     subject-digest: sha256:${{ env.COMMIT_SHA }}
     predicate-type: https://github.com/bot-signer/initialization/v1
     predicate: |
