@@ -1,0 +1,296 @@
+name: Initialize Bot Signer
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  attestations: write
+  id-token: write
+
+jobs:
+  initialize:
+    name: Initialize Cryptographic Root of Trust
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install dependencies
+        run: |
+          # Install cosign
+          COSIGN_VERSION="2.2.4"
+          curl -LO "https://github.com/sigstore/cosign/releases/download/v${COSIGN_VERSION}/cosign-linux-amd64"
+          sudo mv cosign-linux-amd64 /usr/local/bin/cosign
+          sudo chmod +x /usr/local/bin/cosign
+          
+          # Install gitsign
+          GITSIGN_VERSION="0.10.2"
+          curl -LO "https://github.com/sigstore/gitsign/releases/download/v${GITSIGN_VERSION}/gitsign_${GITSIGN_VERSION}_linux_amd64"
+          sudo mv "gitsign_${GITSIGN_VERSION}_linux_amd64" /usr/local/bin/gitsign
+          sudo chmod +x /usr/local/bin/gitsign
+          
+          # Verify installations
+          cosign version
+          gitsign version
+          gpg --version
+          gh --version
+
+      - name: Check if already initialized
+        run: |
+          if [ -f cosign.pub ]; then
+            echo "Error: cosign.pub already exists. Initialization has already been performed."
+            exit 1
+          fi
+          echo "No existing initialization found. Proceeding..."
+
+      - name: Generate Cosign keypair
+        run: |
+          set -euo pipefail
+          
+          # Set empty password for CI environment
+          export COSIGN_PASSWORD=""
+          
+          # Generate key pair (creates cosign.key and cosign.pub)
+          cosign generate-key-pair
+          
+          # Verify files were created
+          if [ ! -f cosign.key ] || [ ! -f cosign.pub ]; then
+            echo "Error: Failed to generate Cosign key pair"
+            exit 1
+          fi
+          
+          echo "Cosign key pair generated successfully"
+
+      - name: Store Cosign private key in GitHub secret
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          
+          # Load private key into environment variable
+          export COSIGN_PRIVATE_KEY=$(cat cosign.key)
+          
+          # Update GitHub secret using GitHub CLI
+          echo "$COSIGN_PRIVATE_KEY" | gh secret set COSIGN_PRIVATE_KEY
+          
+          echo "Cosign private key stored in COSIGN_PRIVATE_KEY secret"
+
+      - name: Securely delete Cosign private key file
+        run: |
+          set -euo pipefail
+          
+          # Securely delete the private key file from disk
+          shred -vfz -n 5 cosign.key
+          
+          # Verify deletion
+          if [ -f cosign.key ]; then
+            echo "Error: Failed to securely delete cosign.key"
+            exit 1
+          fi
+          
+          echo "Cosign private key securely deleted from disk"
+
+      - name: Create Cosign ceremony log
+        run: |
+          set -euo pipefail
+          
+          cat >> changelog.txt << EOF
+          ---
+          Ceremony: Cosign Root of Trust Initialization
+          Date: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          Workflow Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          Key Type: Cosign (sigstore)
+          Password: Empty (for CI simplicity)
+          Public Key: cosign.pub
+          EOF
+          
+          echo "Ceremony log created"
+
+      - name: Create Cosign-signed commit
+        env:
+          COSIGN_PASSWORD: ""
+        run: |
+          set -euo pipefail
+          
+          # Configure git for Cosign signing via gitsign
+          git config --global commit.gpgsign true
+          git config --global tag.gpgsign true
+          git config --global gpg.x509.program gitsign
+          git config --global gpg.format x509
+          
+          # Configure bot identity
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          
+          # Stage files
+          git add cosign.pub changelog.txt
+          
+          # Create the initial Cosign-signed commit
+          git commit -m "Initialize Cosign root of trust
+
+          This commit establishes the Cosign key pair for the bot identity.
+          The commit itself is signed using the newly generated Cosign key."
+          
+          echo "Cosign-signed commit created successfully"
+
+      - name: Generate GnuPG keypair
+        run: |
+          set -euo pipefail
+          
+          # Generate Ed25519 key non-interactively
+          gpg --batch --gen-key << 'EOF'
+          Key-Type: eddsa
+          Key-Curve: ed25519
+          Key-Usage: sign
+          Subkey-Type: ecdh
+          Subkey-Curve: cv25519
+          Subkey-Usage: encrypt
+          Name-Real: github-actions[bot]
+          Name-Email: 41898282+github-actions[bot]@users.noreply.github.com
+          Expire-Date: 0
+          %no-protection
+          %commit
+          EOF
+          
+          # Get the key fingerprint
+          KEY_FPR=$(gpg --list-secret-keys --keyid-format LONG "github-actions[bot]" | grep -A 1 "sec" | tail -1 | tr -d ' ')
+          
+          if [ -z "$KEY_FPR" ]; then
+            echo "Error: Failed to retrieve GPG key fingerprint"
+            exit 1
+          fi
+          
+          echo "KEY_FPR=$KEY_FPR" >> $GITHUB_ENV
+          
+          # Export public key
+          gpg --armor --export "$KEY_FPR" > pgp.pub
+          
+          # Export private key
+          gpg --armor --export-secret-keys "$KEY_FPR" > pgp.key
+          
+          echo "GnuPG key pair generated successfully"
+          echo "Key fingerprint: $KEY_FPR"
+
+      - name: Store GnuPG private key in GitHub secret
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          
+          # Store private key in GitHub secret
+          gh secret set PGP_PRIVATE_KEY < pgp.key
+          
+          echo "GnuPG private key stored in PGP_PRIVATE_KEY secret"
+
+      - name: Securely delete GnuPG private key file
+        run: |
+          set -euo pipefail
+          
+          # Securely delete private key file
+          shred -vfz -n 5 pgp.key
+          
+          # Verify deletion
+          if [ -f pgp.key ]; then
+            echo "Error: Failed to securely delete pgp.key"
+            exit 1
+          fi
+          
+          echo "GnuPG private key securely deleted from disk"
+
+      - name: Create GnuPG ceremony log
+        run: |
+          set -euo pipefail
+          
+          cat >> changelog.txt << EOF
+          ---
+          Ceremony: GnuPG Root of Trust Initialization
+          Date: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          Workflow Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          Key Type: Ed25519 (EdDSA)
+          Key ID: ${{ env.KEY_FPR }}
+          Expiration: No expiration
+          Public Key: pgp.pub
+          EOF
+          
+          echo "GnuPG ceremony log appended"
+
+      - name: Create GPG-signed commit
+        run: |
+          set -euo pipefail
+          
+          # Configure git for GPG signing
+          git config --global commit.gpgsign true
+          git config --global user.signingkey "${{ env.KEY_FPR }}"
+          git config --global gpg.program gpg
+          
+          # Stage files
+          git add pgp.pub changelog.txt
+          
+          # Create GPG-signed commit
+          git commit -S -m "Initialize GnuPG root of trust
+
+          This commit establishes the GnuPG key pair for the bot identity.
+          The commit is signed using the newly generated GPG key."
+          
+          echo "GPG-signed commit created successfully"
+
+      - name: Get commit SHA for attestation
+        id: get-commit-sha
+        run: |
+          COMMIT_SHA=$(git rev-parse HEAD)
+          echo "sha=$COMMIT_SHA" >> $GITHUB_OUTPUT
+          echo "Commit SHA: $COMMIT_SHA"
+
+      - name: Get initialization date
+        id: get-init-date
+        run: |
+          INIT_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          echo "date=$INIT_DATE" >> $GITHUB_OUTPUT
+          echo "Initialization date: $INIT_DATE"
+
+      - name: Create attestation
+        uses: actions/attest@v1
+        with:
+          subject-digest: sha256:${{ steps.get-commit-sha.outputs.sha }}
+          predicate-type: https://github.com/bot-signer/initialization/v1
+          predicate: |
+            {
+              "workflow_run": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+              "initialization_date": "${{ steps.get-init-date.outputs.date }}",
+              "cosign_public_key_path": "cosign.pub",
+              "gpg_public_key_path": "pgp.pub",
+              "ceremony_log": "changelog.txt"
+            }
+
+      - name: Push commits to main
+        run: |
+          set -euo pipefail
+          
+          git push origin main
+          
+          echo "Both commits pushed to main branch successfully"
+
+      - name: Initialization complete
+        run: |
+          echo "=========================================="
+          echo "Bot Signer Initialization Complete"
+          echo "=========================================="
+          echo ""
+          echo "✅ Cosign keypair generated and stored"
+          echo "✅ GnuPG keypair generated and stored"
+          echo "✅ Public keys committed to repository"
+          echo "✅ Ceremony logs recorded"
+          echo "✅ Attestation created"
+          echo ""
+          echo "Files created:"
+          echo "  - cosign.pub (Cosign public key)"
+          echo "  - pgp.pub (GnuPG public key)"
+          echo "  - changelog.txt (Ceremony logs)"
+          echo ""
+          echo "Next steps:"
+          echo "  1. Verify commit signatures in git log"
+          echo "  2. Run the test workflow to verify signing operations"

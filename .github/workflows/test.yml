@@ -1,0 +1,188 @@
+name: Test Bot Signing
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * 0'  # Weekly on Sunday at midnight UTC
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  test-signing:
+    name: Test GPG and Cosign Signing Operations
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install dependencies
+        run: |
+          # Install cosign
+          COSIGN_VERSION="2.2.4"
+          curl -LO "https://github.com/sigstore/cosign/releases/download/v${COSIGN_VERSION}/cosign-linux-amd64"
+          sudo mv cosign-linux-amd64 /usr/local/bin/cosign
+          sudo chmod +x /usr/local/bin/cosign
+          
+          # Install gitsign
+          GITSIGN_VERSION="0.10.2"
+          curl -LO "https://github.com/sigstore/gitsign/releases/download/v${GITSIGN_VERSION}/gitsign_${GITSIGN_VERSION}_linux_amd64"
+          sudo mv "gitsign_${GITSIGN_VERSION}_linux_amd64" /usr/local/bin/gitsign
+          sudo chmod +x /usr/local/bin/gitsign
+          
+          # Verify installations
+          cosign version
+          gitsign version
+          gpg --version
+
+      - name: Import GPG private key
+        run: |
+          set -euo pipefail
+          
+          # Import the GPG private key from the secret
+          echo "${{ secrets.PGP_PRIVATE_KEY }}" | gpg --batch --import
+          
+          # Verify key was imported
+          gpg --list-secret-keys "github-actions[bot]"
+          
+          echo "GPG private key imported successfully"
+
+      - name: Configure git for GPG signing
+        run: |
+          set -euo pipefail
+          
+          # Get the key fingerprint
+          KEY_FPR=$(gpg --list-secret-keys --keyid-format LONG "github-actions[bot]" | grep -A 1 "sec" | tail -1 | tr -d ' ')
+          
+          if [ -z "$KEY_FPR" ]; then
+            echo "Error: Failed to retrieve GPG key fingerprint"
+            exit 1
+          fi
+          
+          echo "KEY_FPR=$KEY_FPR" >> $GITHUB_ENV
+          
+          # Configure git for GPG signing
+          git config --global commit.gpgsign true
+          git config --global user.signingkey "$KEY_FPR"
+          git config --global gpg.program gpg
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          
+          echo "Git configured for GPG signing with key: $KEY_FPR"
+
+      - name: Create timestamp file
+        run: |
+          set -euo pipefail
+          
+          # Create timestamp file
+          date +%s > last_modified.txt
+          
+          echo "Timestamp file created: $(cat last_modified.txt)"
+
+      - name: Create GPG signature
+        run: |
+          set -euo pipefail
+          
+          # Create detached GPG signature
+          gpg --detach-sign --armor --output last_modified.txt.pgp.asc last_modified.txt
+          
+          # Verify signature was created
+          if [ ! -f last_modified.txt.pgp.asc ]; then
+            echo "Error: Failed to create GPG signature"
+            exit 1
+          fi
+          
+          echo "GPG signature created successfully"
+
+      - name: Commit with GPG signature
+        run: |
+          set -euo pipefail
+          
+          # Stage files
+          git add last_modified.txt last_modified.txt.pgp.asc
+          
+          # Create GPG-signed commit
+          git commit -S -m "GPG signing test at $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          
+          echo "GPG-signed commit created successfully"
+
+      - name: Configure git for Cosign signing
+        env:
+          COSIGN_PASSWORD: ""
+        run: |
+          set -euo pipefail
+          
+          # Configure git for Cosign signing (using gitsign)
+          git config --global commit.gpgsign true
+          git config --global tag.gpgsign true
+          git config --global gpg.x509.program gitsign
+          git config --global gpg.format x509
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          
+          echo "Git configured for Cosign signing"
+
+      - name: Create Cosign signature
+        env:
+          COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
+          COSIGN_PASSWORD: ""
+        run: |
+          set -euo pipefail
+          
+          # Create Cosign signature of the timestamp file
+          cosign sign-blob --key env://COSIGN_PRIVATE_KEY \
+            --output-signature last_modified.txt.cosign \
+            last_modified.txt
+          
+          # Verify signature was created
+          if [ ! -f last_modified.txt.cosign ]; then
+            echo "Error: Failed to create Cosign signature"
+            exit 1
+          fi
+          
+          echo "Cosign signature created successfully"
+
+      - name: Commit with Cosign signature
+        env:
+          COSIGN_PASSWORD: ""
+        run: |
+          set -euo pipefail
+          
+          # Stage files
+          git add last_modified.txt.cosign
+          
+          # Create Cosign-signed commit
+          git commit -m "Cosign signing test at $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          
+          echo "Cosign-signed commit created successfully"
+
+      - name: Push commits to main
+        run: |
+          set -euo pipefail
+          
+          git push origin main
+          
+          echo "Both commits pushed to main branch successfully"
+
+      - name: Test complete
+        run: |
+          echo "=========================================="
+          echo "Bot Signing Test Complete"
+          echo "=========================================="
+          echo ""
+          echo "✅ GPG signing operation successful"
+          echo "✅ Cosign signing operation successful"
+          echo "✅ Both commits pushed to repository"
+          echo ""
+          echo "Files created/updated:"
+          echo "  - last_modified.txt (timestamp file)"
+          echo "  - last_modified.txt.pgp.asc (GPG signature)"
+          echo "  - last_modified.txt.cosign (Cosign signature)"
+          echo ""
+          echo "Verification:"
+          echo "  - Check git log for signature verification"
+          echo "  - Verify commit signatures with: git log --show-signature"
