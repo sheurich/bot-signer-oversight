@@ -217,6 +217,10 @@ EOF
 **Git Configuration and Commit:**
 
 ```bash
+# Reset git config to remove gitsign settings
+git config --global --unset gpg.x509.program || true
+git config --global --unset gpg.format || true
+
 # Configure git for GPG signing
 git config --global commit.gpgsign true
 git config --global user.signingkey "$KEY_FPR"
