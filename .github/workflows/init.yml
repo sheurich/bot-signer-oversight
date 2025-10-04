@@ -28,30 +28,47 @@ jobs:
         env:
           COSIGN_PASSWORD: ""
 
-      - name: Store cosign private key as secret
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs');
-            const privateKey = fs.readFileSync('cosign.key', 'utf8');
-            await github.rest.actions.createOrUpdateRepoSecret({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              secret_name: 'GITHUB_ACTIONS_BOT_COSIGN',
-              encrypted_value: await (async () => {
-                const sodium = require('tweetsodium');
-                const key = await github.rest.actions.getRepoPublicKey({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                });
-                const messageBytes = Buffer.from(privateKey);
-                const keyBytes = Buffer.from(key.data.key, 'base64');
-                const encryptedBytes = sodium.seal(messageBytes, keyBytes);
-                return Buffer.from(encryptedBytes).toString('base64');
-              })()
+      - name: Create store-secret.js script
+        run: |
+          cat <<'EOF' > store-secret.js
+          const fs = require('fs');
+          const sodium = require('tweetsodium');
+          const { Octokit } = require('@octokit/rest');
+          
+          const filePath = process.argv[2];
+          const secretName = process.argv[3];
+          const owner = process.env.GITHUB_REPOSITORY.split('/')[0];
+          const repo = process.env.GITHUB_REPOSITORY.split('/')[1];
+          const token = process.env.GITHUB_TOKEN;
+          
+          const octokit = new Octokit({ auth: token });
+          
+          async function main() {
+            const value = fs.readFileSync(filePath, 'utf8');
+            const key = await octokit.actions.getRepoPublicKey({ owner, repo });
+            const messageBytes = Buffer.from(value);
+            const keyBytes = Buffer.from(key.data.key, 'base64');
+            const encryptedBytes = sodium.seal(messageBytes, keyBytes);
+            const encryptedValue = Buffer.from(encryptedBytes).toString('base64');
+            await octokit.actions.createOrUpdateRepoSecret({
+              owner,
+              repo,
+              secret_name: secretName,
+              encrypted_value: encryptedValue,
+              key_id: key.data.key_id
             });
-            console.log('Stored cosign private key in GITHUB_ACTIONS_BOT_COSIGN secret');
+            console.log(`Stored ${filePath} in ${secretName} secret`);
+          }
+          main();
+          EOF
 
+      - name: Store cosign private key as secret
+        run: |
+          npm install tweetsodium @octokit/rest
+          node store-secret.js cosign.key GITHUB_ACTIONS_BOT_COSIGN
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
       - name: Save public key
         run: |
           mv cosign.pub key.cosign
