@@ -21,7 +21,7 @@ jobs:
       - name: Import PGP key
         run: |
           echo "${{ secrets.GITHUB_ACTIONS_BOT_PGP }}" | gpg --batch --import
-          KEY_ID=$(gpg --list-secret-keys --keyid-format LONG github-actions[bot]@users.noreply.github.com | grep sec | awk '{print $2}' | cut -d'/' -f2)
+          KEY_ID=$(gpg --list-secret-keys --with-colons github-actions[bot]@users.noreply.github.com | awk -F: '/^fpr:/ {print $10; exit}')
           echo "KEY_ID=$KEY_ID" >> $GITHUB_ENV
 
       - name: Configure git for PGP signing
@@ -54,21 +54,21 @@ jobs:
         env:
           COSIGN_PASSWORD: ""
 
-      - name: Create cosign signature
+      - name: Create cosign blob signature
         run: |
           cosign sign-blob --key cosign.key --output-signature last_modified.txt.cosign last_modified.txt
           rm cosign.key
         env:
           COSIGN_PASSWORD: ""
 
-      - name: Configure git for cosign signing
+      - name: Disable GPG commit signing
         run: |
           git config commit.gpgsign false
 
-      - name: Commit with cosign signature
+      - name: Commit cosign blob signature file
         run: |
           git add last_modified.txt.cosign
-          git commit -m "Add cosign signature
+          git commit -m "Add cosign blob signature file
 
           Signed at: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
