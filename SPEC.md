@@ -334,8 +334,8 @@ git config --global user.email "41898282+github-actions[bot]@users.noreply.githu
 **File Operations:**
 
 ```bash
-# Create Cosign signature of the timestamp file
-cosign sign-blob --key env://COSIGN_PRIVATE_KEY \
+# Create Cosign signature (--yes bypasses interactive prompt in CI)
+cosign sign-blob --yes --key env://COSIGN_PRIVATE_KEY \
   --output-signature last_modified.txt.cosign \
   last_modified.txt
 ```

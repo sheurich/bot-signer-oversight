@@ -133,12 +133,11 @@ jobs:
         run: |
           set -euo pipefail
           
-          # Create Cosign signature of the timestamp file
-          cosign sign-blob --key env://COSIGN_PRIVATE_KEY \
+          # Create Cosign signature (--yes bypasses interactive prompt)
+          cosign sign-blob --yes --key env://COSIGN_PRIVATE_KEY \
             --output-signature last_modified.txt.cosign \
             last_modified.txt
           
-          # Verify signature was created
           if [ ! -f last_modified.txt.cosign ]; then
             echo "Error: Failed to create Cosign signature"
             exit 1
