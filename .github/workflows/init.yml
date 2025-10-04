@@ -67,14 +67,15 @@ jobs:
 
       - name: Store Cosign private key in GitHub secret
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.ADMIN_TOKEN }}
         run: |
           set -euo pipefail
           
           # Load private key into environment variable
           export COSIGN_PRIVATE_KEY=$(cat cosign.key)
           
-          # Update GitHub secret using GitHub CLI
+          # Update GitHub secret using GitHub CLI with ADMIN_TOKEN
+          # Note: GITHUB_TOKEN cannot write secrets - requires PAT with admin access
           echo "$COSIGN_PRIVATE_KEY" | gh secret set COSIGN_PRIVATE_KEY
           
           echo "Cosign private key stored in COSIGN_PRIVATE_KEY secret"
@@ -177,11 +178,12 @@ jobs:
 
       - name: Store GnuPG private key in GitHub secret
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.ADMIN_TOKEN }}
         run: |
           set -euo pipefail
           
-          # Store private key in GitHub secret
+          # Store private key in GitHub secret using ADMIN_TOKEN
+          # Note: GITHUB_TOKEN cannot write secrets - requires PAT with admin access
           gh secret set PGP_PRIVATE_KEY < pgp.key
           
           echo "GnuPG private key stored in PGP_PRIVATE_KEY secret"

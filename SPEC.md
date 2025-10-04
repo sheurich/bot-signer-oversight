@@ -18,11 +18,11 @@ The Cosign private key is generated **without a password** (empty string) for op
 
 ### 2.2. GitHub API Authentication
 
-All GitHub API operations use the built-in `GITHUB_TOKEN` provided automatically to workflow runs. This token:
+Secret management requires a Personal Access Token (PAT) with repository admin access:
 
-- Has workflow-scoped permissions (contents: write, secrets: write)
-- Automatically expires after the workflow completes
-- Requires no additional credential management
+- `GITHUB_TOKEN` cannot write repository secrets (security limitation)
+- Requires `ADMIN_TOKEN` secret with "Secrets" write permission
+- Token is only used during initialization workflow
 
 ### 2.3. Error Handling Strategy
 
@@ -56,28 +56,18 @@ permissions:
   id-token: write # For OIDC token generation
 ```
 
-### 3.3. Manual Secret Creation
+### 3.3. Required Secrets
 
-Two empty repository secrets must be created manually via the GitHub UI **before** the first workflow run:
+Create these repository secrets before running the initialization workflow:
 
-1. **`COSIGN_PRIVATE_KEY`** - Will store the Cosign private key
-2. **`PGP_PRIVATE_KEY`** - Will store the GnuPG private key
+1. **`ADMIN_TOKEN`** - PAT with repository admin access (Secrets write permission)
+2. **`COSIGN_PRIVATE_KEY`** - Empty placeholder (will be populated by workflow)
+3. **`PGP_PRIVATE_KEY`** - Empty placeholder (will be populated by workflow)
 
-**Steps to create secrets:**
-
-1. Navigate to your repository on GitHub
-2. Go to **Settings** → **Secrets and variables** → **Actions**
-3. Click **New repository secret**
-4. For the first secret:
-   - Name: `COSIGN_PRIVATE_KEY`
-   - Value: Leave empty (just a space character or any placeholder)
-   - Click **Add secret**
-5. Repeat for the second secret:
-   - Name: `PGP_PRIVATE_KEY`
-   - Value: Leave empty (just a space character or any placeholder)
-   - Click **Add secret**
-
-These empty secrets serve as placeholders and will be populated by the initialization workflow with the actual cryptographic keys.
+**Steps:**
+1. Settings → Secrets and variables → Actions → New repository secret
+2. Create `ADMIN_TOKEN` with your PAT
+3. Create `COSIGN_PRIVATE_KEY` and `PGP_PRIVATE_KEY` with empty/placeholder values
 
 ---
 
@@ -120,9 +110,9 @@ shred -vfz -n 5 cosign.key
 
 **Secret Population:**
 
-Use the GitHub API to store the Cosign private key:
-
 ```bash
+# Requires ADMIN_TOKEN for secret write access
+export GH_TOKEN="${{ secrets.ADMIN_TOKEN }}"
 gh secret set COSIGN_PRIVATE_KEY --body "$COSIGN_PRIVATE_KEY"
 ```
 
@@ -203,10 +193,9 @@ gpg --armor --export "$KEY_FPR" > pgp.pub
 **Secret Population:**
 
 ```bash
-# Store private key in GitHub secret
+# Requires ADMIN_TOKEN for secret write access
+export GH_TOKEN="${{ secrets.ADMIN_TOKEN }}"
 gh secret set PGP_PRIVATE_KEY --body "$(cat pgp.key)"
-
-# Securely delete private key file
 shred -vfz -n 5 pgp.key
 ```
 
