@@ -133,27 +133,31 @@ jobs:
           gpg --armor --export-secret-keys $KEY_ID > private.pgp.asc
           echo "Public key fingerprint: $(gpg --fingerprint $KEY_ID | grep -oP '[A-F0-9]{4} [A-F0-9]{4} [A-F0-9]{4} [A-F0-9]{4} [A-F0-9]{4}  [A-F0-9]{4} [A-F0-9]{4} [A-F0-9]{4} [A-F0-9]{4} [A-F0-9]{4}')" >> changelog.txt
 
+      - name: Install tweetsodium
+        run: npm install tweetsodium
+
       - name: Store PGP private key as secret
         uses: actions/github-script@v7
         with:
           script: |
             const fs = require('fs');
             const privateKey = fs.readFileSync('private.pgp.asc', 'utf8');
+            const sodium = require('tweetsodium');
+            const key = await github.rest.actions.getRepoPublicKey({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+            });
             await github.rest.actions.createOrUpdateRepoSecret({
               owner: context.repo.owner,
               repo: context.repo.repo,
               secret_name: 'GITHUB_ACTIONS_BOT_PGP',
-              encrypted_value: await (async () => {
-                const sodium = require('tweetsodium');
-                const key = await github.rest.actions.getRepoPublicKey({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                });
+              encrypted_value: (() => {
                 const messageBytes = Buffer.from(privateKey);
                 const keyBytes = Buffer.from(key.data.key, 'base64');
                 const encryptedBytes = sodium.seal(messageBytes, keyBytes);
                 return Buffer.from(encryptedBytes).toString('base64');
-              })()
+              })(),
+              key_id: key.data.key_id
             });
             console.log('Stored PGP private key in GITHUB_ACTIONS_BOT_PGP secret');
 
