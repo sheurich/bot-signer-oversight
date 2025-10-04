@@ -1,0 +1,7 @@
+---
+Ceremony: Cosign Root of Trust Initialization
+Date: 2025-10-04 04:55:46 UTC
+Workflow Run: https://github.com/sheurich/bot-signer-oversight/actions/runs/18239847154
+Key Type: Cosign (sigstore)
+Password: Empty (for CI simplicity)
+Public Key: cosign.pub
