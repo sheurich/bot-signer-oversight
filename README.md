@@ -1,5 +1,3 @@
-# `README.md`
-
 # bot-signer
 
 This repository provides an easily auditable cryptographic root of trust for bot accounts, designed for creation, usage, and maintenance entirely within GitHub Actions.

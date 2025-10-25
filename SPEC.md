@@ -14,7 +14,9 @@ The Cosign private key is generated **without a password** (empty string) for op
 
 - **Benefit**: Eliminates the need to manage and secure an additional password secret in the workflow environment
 - **Trade-off**: The private key security relies entirely on GitHub's secret management and the `COSIGN_PRIVATE_KEY` secret protection
-- **Mitigation**: The key is never written to disk in plain text, only loaded into memory via environment variables, and GitHub's secret scanning prevents accidental exposure
+- **Mitigation**: The key material is written to disk only long enough for Cosign to emit `cosign.key`; the workflow immediately uploads the value to GitHub Secrets and securely shreds the file
+
+A similar pattern is used for the GPG key pair: `pgp.key` is exported temporarily so it can be stored as the `PGP_PRIVATE_KEY` secret, and the workflow shreds the file as soon as the upload completes. Continuous access control therefore depends on GitHub's secret storage guarantees.
 
 ### 2.2. GitHub API Authentication
 
@@ -75,291 +77,30 @@ Create these repository secrets before running the initialization workflow:
 
 ### 4.1. Initialization Workflow (`.github/workflows/init.yml`)
 
-This workflow establishes the root of trust. It is triggered manually via `workflow_dispatch` and should only be run **once** to initialize the repository.
+This workflow establishes the root of trust and should be triggered manually once via `workflow_dispatch`. The individual commands live in the workflow file; the summary below captures the intent of each phase.
 
-#### 4.1.1. Cosign Root of Trust Ceremony
+- Guard & setup - Installs Cosign/Gitsign, aborts if `cosign.pub` already exists, and configures the bot identity used for commits.
+- Cosign ceremony - Runs `cosign generate-key-pair`, uploads the private key to the `COSIGN_PRIVATE_KEY` secret, shreds `cosign.key`, appends a Cosign entry to `changelog.txt`, and creates the first commit signed via gitsign. That commit adds `cosign.pub` and the ceremony log.
+- GnuPG ceremony - Generates an Ed25519 GPG key for `github-actions[bot]`, exports it temporarily to `pgp.key` so it can populate the `PGP_PRIVATE_KEY` secret, shreds the export, appends a GPG entry to `changelog.txt`, and creates a GPG-signed commit containing `pgp.pub` plus the updated log.
+- Attestation & push - Uses `actions/attest@v1` to create a provenance attestation that links the ceremony log to the workflow run, then pushes the Cosign-signed and GPG-signed commits to `main`.
 
-This step generates the Cosign key pair and creates the initial commit.
+Expected artifacts after a successful run:
 
-**Initialization Check:**
-
-Before generating keys, verify that `cosign.pub` does not already exist:
-
-```bash
-if [ -f cosign.pub ]; then
-  echo "Error: cosign.pub already exists. Initialization has already been performed."
-  exit 1
-fi
-```
-
-**Key Generation:**
-
-```bash
-# Set empty password for CI environment
-export COSIGN_PASSWORD=""
-
-# Generate key pair (creates cosign.key and cosign.pub)
-cosign generate-key-pair
-
-# Load private key into environment variable
-export COSIGN_PRIVATE_KEY=$(cat cosign.key)
-
-# Securely delete the private key file (-u removes it)
-shred -vfzu -n 5 cosign.key
-```
-
-**Secret Population:**
-
-```bash
-# Requires ADMIN_TOKEN for secret write access
-export GH_TOKEN="${{ secrets.ADMIN_TOKEN }}"
-gh secret set COSIGN_PRIVATE_KEY --body "$COSIGN_PRIVATE_KEY"
-```
-
-**File Creation:**
-
-```bash
-# Public key is already written to cosign.pub by cosign generate-key-pair
-
-# Create ceremony log
-cat >> changelog.txt << 'EOF'
----
-Ceremony: Cosign Root of Trust Initialization
-Date: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
-Workflow Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-Key Type: Cosign (sigstore)
-Password: Empty (for CI simplicity)
-Public Key: cosign.pub
-EOF
-```
-
-**Git Configuration and Commit:**
-
-This commit **MUST** be signed using Cosign (e.g., via gitsign):
-
-```bash
-# Configure git for Cosign signing
-git config --global commit.gpgsign true
-git config --global tag.gpgsign true
-git config --global gpg.x509.program gitsign
-git config --global gpg.format x509
-
-# Configure bot identity
-git config --global user.name "github-actions[bot]"
-git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-# Create the initial Cosign-signed commit
-git add cosign.pub changelog.txt
-git commit -m "Initialize Cosign root of trust
-
-This commit establishes the Cosign key pair for the bot identity.
-The commit itself is signed using the newly generated Cosign key."
-```
-
-#### 4.1.2. GnuPG Root of Trust Ceremony
-
-This step generates the GnuPG key pair and creates a second commit.
-
-**Key Generation:**
-
-Generate an Ed25519 key with no expiration:
-
-```bash
-# Generate Ed25519 key non-interactively
-gpg --batch --gen-key << 'EOF'
-Key-Type: eddsa
-Key-Curve: ed25519
-Key-Usage: sign
-Subkey-Type: ecdh
-Subkey-Curve: cv25519
-Subkey-Usage: encrypt
-Name-Real: github-actions[bot]
-Name-Email: 41898282+github-actions[bot]@users.noreply.github.com
-Expire-Date: 0
-%no-protection
-%commit
-EOF
-
-# Get the key fingerprint
-KEY_FPR=$(gpg --list-secret-keys --keyid-format LONG "github-actions[bot]" | grep -A 1 "sec" | tail -1 | tr -d ' ')
-
-# Export private key
-gpg --armor --export-secret-keys "$KEY_FPR" > pgp.key
-
-# Export public key
-gpg --armor --export "$KEY_FPR" > pgp.pub
-```
-
-**Secret Population:**
-
-```bash
-# Requires ADMIN_TOKEN for secret write access
-export GH_TOKEN="${{ secrets.ADMIN_TOKEN }}"
-gh secret set PGP_PRIVATE_KEY --body "$(cat pgp.key)"
-shred -vfzu -n 5 pgp.key
-```
-
-**Ceremony Log:**
-
-```bash
-cat >> changelog.txt << 'EOF'
----
-Ceremony: GnuPG Root of Trust Initialization
-Date: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
-Workflow Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-Key Type: Ed25519 (EdDSA)
-Key ID: $KEY_FPR
-Expiration: No expiration
-Public Key: pgp.pub
-EOF
-```
-
-**Git Configuration and Commit:**
-
-```bash
-# Reset git config to remove gitsign settings
-git config --global --unset gpg.x509.program || true
-git config --global --unset gpg.format || true
-
-# Configure git for GPG signing
-git config --global commit.gpgsign true
-git config --global user.signingkey "$KEY_FPR"
-git config --global gpg.program gpg
-
-# Create GPG-signed commit
-git add pgp.pub changelog.txt
-git commit -S -m "Initialize GnuPG root of trust
-
-This commit establishes the GnuPG key pair for the bot identity.
-The commit is signed using the newly generated GPG key."
-```
-
-#### 4.1.3. Attestation
-
-Create a GitHub attestation for the ceremony log file:
-
-```bash
-- uses: actions/attest@v1
-  with:
-    subject-path: changelog.txt
-    predicate-type: https://github.com/bot-signer/initialization/v1
-    predicate: |
-      {
-        "workflow_run": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
-        "initialization_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-        "commit_sha": "$(git rev-parse HEAD)",
-        "cosign_public_key_path": "cosign.pub",
-        "gpg_public_key_path": "pgp.pub",
-        "ceremony_log": "changelog.txt"
-      }
-```
-
-The attestation creates a verifiable link between the ceremony log and the workflow run that created it.
-
-#### 4.1.4. Push
-
-Push both commits to the repository:
-
-```bash
-git push origin main
-```
-
-**Expected Result:**
-
-- Two commits pushed to `main`
-- First commit: Cosign-signed, contains `cosign.pub` and initial `changelog.txt`
-- Second commit: GPG-signed, contains `pgp.pub` and updated `changelog.txt`
-- One attestation created and linked to the final commit SHA
-
----
+- `cosign.pub` (Cosign public key)
+- `pgp.pub` (GnuPG public key)
+- `changelog.txt` with two ceremony entries
+- Provenance attestation referencing the final commit SHA
 
 ### 4.2. Test Workflow (`.github/workflows/test.yml`)
 
-This workflow demonstrates the bot's ability to use its established keys. It can be triggered on a schedule (`schedule`) or manually (`workflow_dispatch`).
+This workflow can run on a weekly schedule or manually. It verifies that both signing setups remain functional and auditable.
 
-#### 4.2.1. GPG Signing Operation
+- Environment prep - Installs Cosign/Gitsign, imports the GPG private key from secrets, and configures git for signature enforcement.
+- GPG signing - Regenerates `last_modified.txt`, produces `last_modified.txt.pgp.asc`, and creates a GPG-signed commit that stages both files.
+- Cosign signing - Switches git to gitsign-based signing, generates `last_modified.txt.cosign` with `cosign sign-blob`, and commits the signature. The workflow relies on the `COSIGN_PRIVATE_KEY` secret injected at runtime.
+- Push & reporting - Pushes the new commits to `main` and logs a short checklist of the produced artifacts.
 
-**Environment Setup:**
-
-```bash
-# Import the GPG private key from the secret
-echo "${{ secrets.PGP_PRIVATE_KEY }}" | gpg --batch --import
-
-# Get the key fingerprint
-KEY_FPR=$(gpg --list-secret-keys --keyid-format LONG "github-actions[bot]" | grep -A 1 "sec" | tail -1 | tr -d ' ')
-
-# Configure git for GPG signing
-git config --global commit.gpgsign true
-git config --global user.signingkey "$KEY_FPR"
-git config --global gpg.program gpg
-git config --global user.name "github-actions[bot]"
-git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
-```
-
-**File Operations:**
-
-```bash
-# Create timestamp file
-date +%s > last_modified.txt
-
-# Create detached GPG signature
-gpg --detach-sign --armor --output last_modified.txt.pgp.asc last_modified.txt
-```
-
-**Commit:**
-
-```bash
-git add last_modified.txt last_modified.txt.pgp.asc
-git commit -S -m "GPG signing test at $(date -u +%Y-%m-%dT%H:%M:%SZ)"
-```
-
-#### 4.2.2. Cosign Signing Operation
-
-**Environment Setup:**
-
-```bash
-# Load Cosign private key from secret
-export COSIGN_PRIVATE_KEY="${{ secrets.COSIGN_PRIVATE_KEY }}"
-export COSIGN_PASSWORD=""
-
-# Configure git for Cosign signing (using gitsign)
-git config --global commit.gpgsign true
-git config --global tag.gpgsign true
-git config --global gpg.x509.program gitsign
-git config --global gpg.format x509
-git config --global user.name "github-actions[bot]"
-git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
-```
-
-**File Operations:**
-
-```bash
-# Create Cosign signature (--yes bypasses interactive prompt in CI)
-cosign sign-blob --yes --key env://COSIGN_PRIVATE_KEY \
-  --output-signature last_modified.txt.cosign \
-  last_modified.txt
-```
-
-**Commit:**
-
-```bash
-git add last_modified.txt.cosign
-git commit -m "Cosign signing test at $(date -u +%Y-%m-%dT%H:%M:%SZ)"
-```
-
-#### 4.2.3. Push
-
-```bash
-git push origin main
-```
-
-**Expected Result:**
-
-- Two new commits pushed to `main`
-- First commit: GPG-signed, contains `last_modified.txt` and `last_modified.txt.pgp.asc`
-- Second commit: Cosign-signed, contains `last_modified.txt.cosign`
-
----
+Each run should leave the repository with fresher timestamp/signature files and a pair of verifiably signed commits that can be checked with `git log --show-signature`, Cosign verification tooling, or GitHub's attestation APIs.
 
 ## 5. Verification Steps
 
