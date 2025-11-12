@@ -381,7 +381,7 @@ gh attestation verify "$FILE_OID" --repo owner/repo
 # Expected output
 Loaded digest sha256:abc123... for file://file
 Loaded 1 attestation from GitHub API
-✓ Verification succeeded!
+Verification succeeded!
 ```
 
 ## Keyless Signing (OIDC)
@@ -716,9 +716,9 @@ for format in $(jq -r '.signatures[].format' $CEREMONY); do
     VERIFY_CMD=$(jq -r ".signatures[] | select(.format==\"$format\") | .verification_command" $CEREMONY)
 
     if eval "$VERIFY_CMD" 2>&1 | tee /tmp/verify-$format.log; then
-        echo "✅ $format signature valid"
+        echo "$format signature valid"
     else
-        echo "❌ $format signature FAILED"
+        echo "$format signature FAILED"
         cat /tmp/verify-$format.log
         FAILED=1
     fi
@@ -727,13 +727,13 @@ done
 
 if [ $FAILED -eq 0 ]; then
     echo "======================================"
-    echo "✅ All signatures verified successfully"
+    echo "All signatures verified successfully"
     echo "Artifact: $ARTIFACT"
     echo "SHA256: $(sha256sum $ARTIFACT | cut -d' ' -f1)"
     exit 0
 else
     echo "======================================"
-    echo "❌ One or more signatures failed"
+    echo "One or more signatures failed"
     exit 1
 fi
 ```

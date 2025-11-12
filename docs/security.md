@@ -258,57 +258,57 @@ Risk Score = Likelihood (1-5) × Impact (1-5) × 0.4
 ### Preventive Controls
 
 **PC-01: Key Password Protection**
-- Status: ❌ Not implemented (empty passwords by design)
+- Status: Not implemented (empty passwords by design)
 - Effectiveness: N/A
 - Rationale: Accepted risk for operational simplicity
 
 **PC-02: Branch Protection**
-- Status: ⚠️ Recommended but not enforced
+- Status: Recommended but not enforced
 - Effectiveness: High (prevents unauthorized workflow modification)
 - Gaps: Admins can bypass
 
 **PC-03: Ephemeral Runners**
-- Status: ✅ Implemented (GitHub-hosted)
+- Status: Implemented (GitHub-hosted)
 - Effectiveness: Medium (runner destroyed after execution)
 - Gaps: No guarantee of secure deletion
 
 **PC-04: Fail-Fast Error Handling**
-- Status: ✅ Implemented (`set -euo pipefail`)
+- Status: Implemented (`set -euo pipefail`)
 - Effectiveness: High (prevents partial ceremonies)
 
 ### Detective Controls
 
 **DC-01: Signed Commits**
-- Status: ✅ Implemented
+- Status: Implemented
 - Effectiveness: High (tamper-evident history)
 - Gaps: No automated verification
 
 **DC-02: Ceremony Log**
-- Status: ⚠️ Partial (not signed)
+- Status: Partial (not signed)
 - Effectiveness: Medium (useful but not tamper-proof)
 
 **DC-03: GitHub Actions Logs**
-- Status: ✅ Implemented
+- Status: Implemented
 - Effectiveness: Medium (90-day retention, admin-deletable)
 
 **DC-04: Rekor Transparency Log**
-- Status: ✅ Implemented (gitsign)
+- Status: Implemented (gitsign)
 - Effectiveness: Excellent (public, immutable)
 - Coverage: Only gitsign commits
 
 **DC-05: GitHub Audit Log**
-- Status: ⚠️ Requires Enterprise
+- Status: Requires Enterprise
 - Effectiveness: High (secret modification tracking)
 - Availability: Not accessible to free/pro plans
 
 ### Corrective Controls
 
 **CC-01: Key Rotation**
-- Status: ❌ Not implemented
+- Status: Not implemented
 - Criticality: High
 
 **CC-02: Incident Response**
-- Status: ❌ Not documented
+- Status: Not documented
 - Criticality: High
 
 ### Missing Controls
@@ -440,10 +440,10 @@ Requires manual approval for secret access.
 
 ### SLSA (Supply Chain Levels)
 
-- Level 1: ✅ Source control and versioning
-- Level 2: ✅ Provenance attestations
-- Level 3: ⚠️ Partial (lacks hardened build platform)
-- Level 4: ❌ No two-party review
+- Level 1: Source control and versioning
+- Level 2: Provenance attestations
+- Level 3: Partial (lacks hardened build platform)
+- Level 4: No two-party review
 
 **Gaps for Level 3:**
 - No hardened build environment
@@ -451,9 +451,9 @@ Requires manual approval for secret access.
 
 ### SOC 2 Type II
 
-- Logical access: ⚠️ GitHub access controls only
-- Change management: ✅ Signed commits
-- Key management: ⚠️ No rotation
+- Logical access: GitHub access controls only
+- Change management: Signed commits
+- Key management: No rotation
 
 **Gaps:**
 - No access reviews
@@ -462,9 +462,9 @@ Requires manual approval for secret access.
 
 ### ISO 27001
 
-- A.9 Access Control: ⚠️ Limited by platform
-- A.10 Cryptography: ✅ Documented lifecycle
-- A.12 Operations Security: ⚠️ GitHub-dependent
+- A.9 Access Control: Limited by platform
+- A.10 Cryptography: Documented lifecycle
+- A.12 Operations Security: GitHub-dependent
 
 **Gaps:**
 - No periodic access certification
@@ -473,7 +473,7 @@ Requires manual approval for secret access.
 
 ### FedRAMP
 
-- ❌ Not achievable without HSM
+- Not achievable without HSM
 - SC-12, SC-13 require FIPS 140-2 validated cryptography
 - Would require HSM-backed production mode
 

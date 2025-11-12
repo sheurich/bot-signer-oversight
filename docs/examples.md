@@ -47,7 +47,7 @@ jobs:
             --bundle artifact.tar.gz.bundle \
             artifact.tar.gz
 
-          echo "✅ Signed with Cosign"
+          echo "Signed with Cosign"
           echo "Bundle: artifact.tar.gz.bundle"
 
       - name: Create GitHub Attestation
@@ -178,7 +178,7 @@ jobs:
           ) \
               "$artifact"
 
-            echo "✅ Signed $artifact with 4 formats"
+            echo "Signed $artifact with 4 formats"
           done
 
       - name: Create Verification Script
@@ -194,20 +194,20 @@ jobs:
 
           # Cosign
           echo "Checking Cosign..."
-          cosign verify-blob --bundle "${ARTIFACT}.bundle" "$ARTIFACT" && echo "✅ Cosign OK"
+          cosign verify-blob --bundle "${ARTIFACT}.bundle" "$ARTIFACT" && echo "Cosign OK"
 
           # GPG
           echo "Checking GPG..."
           gpg --import "${ARTIFACT}.pub"
-          gpg --verify "${ARTIFACT}.asc" "$ARTIFACT" && echo "✅ GPG OK"
+          gpg --verify "${ARTIFACT}.asc" "$ARTIFACT" && echo "GPG OK"
 
           # GitHub attestation
           echo "Checking GitHub attestation..."
           FILE_OID="oid:gitoid:blob:sha256:$(git hash-object "$ARTIFACT")"
-          gh attestation verify "$FILE_OID" --repo ${{ github.repository }} && echo "✅ GitHub OK"
+          gh attestation verify "$FILE_OID" --repo ${{ github.repository }} && echo "GitHub OK"
 
           echo "===================="
-          echo "✅ All signatures valid"
+          echo "All signatures valid"
           EOF
 
           chmod +x verify.sh
@@ -277,7 +277,7 @@ jobs:
             --certificate-oidc-issuer="https://token.actions.githubusercontent.com" \
             $COMMIT
 
-          echo "✅ Commit $COMMIT verified"
+          echo "Commit $COMMIT verified"
 
           # Show certificate details
           git log --show-signature -1
@@ -322,19 +322,19 @@ jobs:
               --certificate-identity-regexp=".*" \
               --certificate-oidc-issuer="https://token.actions.githubusercontent.com" \
               $commit 2>&1; then
-              echo "✅ Commit $commit verified (gitsign)"
+              echo "Commit $commit verified (gitsign)"
             else
-              echo "❌ Commit $commit verification FAILED"
+              echo "Commit $commit verification FAILED"
               FAILED=1
             fi
           done
 
           if [ $FAILED -eq 1 ]; then
-            echo "❌ One or more commit verifications failed"
+            echo "One or more commit verifications failed"
             exit 1
           fi
 
-          echo "✅ All commits verified"
+          echo "All commits verified"
 
   verify-artifacts:
     runs-on: ubuntu-latest
@@ -359,13 +359,13 @@ jobs:
               echo "Verifying $artifact"
 
               if cosign verify-blob --bundle "$bundle" "$artifact"; then
-                echo "✅ $artifact verified"
+                echo "$artifact verified"
               else
-                echo "❌ $artifact verification FAILED"
+                echo "$artifact verification FAILED"
                 FAILED=1
               fi
             else
-              echo "⚠️  Artifact $artifact not found for bundle $bundle"
+              echo "Warning: Artifact $artifact not found for bundle $bundle"
             fi
           done
 
@@ -373,7 +373,7 @@ jobs:
             exit 1
           fi
 
-          echo "✅ All artifacts verified"
+          echo "All artifacts verified"
 
   verify-attestations:
     runs-on: ubuntu-latest
@@ -396,7 +396,7 @@ jobs:
 
             # Try to verify attestation
             if gh attestation verify "$FILE_OID" --repo ${{ github.repository }} 2>/dev/null; then
-              echo "✅ $file has valid attestation"
+              echo "$file has valid attestation"
             fi
           done
         env:
@@ -545,7 +545,7 @@ jobs:
             --alias-name alias/bot-signer-current \
             --target-key-id $NEW_KEY
 
-          echo "✅ Created new key: $NEW_KEY"
+          echo "Created new key: $NEW_KEY"
 
       - name: Sign Rotation Ceremony with Old Key
         run: |
@@ -572,7 +572,7 @@ jobs:
             --query 'Signature' \
             --output text | base64 -d > rotation-ceremony.old-key.sig
 
-          echo "✅ Signed ceremony with old key"
+          echo "Signed ceremony with old key"
 
       - name: Sign Rotation Ceremony with New Key
         run: |
@@ -586,7 +586,7 @@ jobs:
             --query 'Signature' \
             --output text | base64 -d > rotation-ceremony.new-key.sig
 
-          echo "✅ Signed ceremony with new key"
+          echo "Signed ceremony with new key"
 
       - name: Export Public Keys
         run: |
@@ -632,7 +632,7 @@ jobs:
             --key-id "${{ secrets.AWS_KMS_KEY_ID }}" \
             --pending-window-in-days 30
 
-          echo "⏰ Old key scheduled for deletion in 30 days"
+          echo "Old key scheduled for deletion in 30 days"
 ```
 
 ## Configuration Examples

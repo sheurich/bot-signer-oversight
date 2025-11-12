@@ -12,13 +12,13 @@ Establishes cryptographic identity for GitHub Actions bots through auditable key
 
 Phase 1 implementation replaces static key storage with keyless OIDC signing:
 
-✅ **ADMIN_TOKEN eliminated** - No more CVSS 9.3 vulnerability
-✅ **Keyless OIDC signing** - Identity from GitHub Actions OIDC tokens
-✅ **Ephemeral keys** - GPG keys with 10-minute expiration, no persistent storage
-✅ **Sigstore integration** - Fulcio certificates and Rekor transparency log
-✅ **Automated verification** - Workflow runs every 6 hours
-✅ **Ceremony logs** - Complete audit trail with verification commands
-✅ **Plugin architecture** - Extensible backend system for multiple formats
+**ADMIN_TOKEN eliminated** - No more CVSS 9.3 vulnerability
+**Keyless OIDC signing** - Identity from GitHub Actions OIDC tokens
+**Ephemeral keys** - GPG keys with 10-minute expiration, no persistent storage
+**Sigstore integration** - Fulcio certificates and Rekor transparency log
+**Automated verification** - Workflow runs every 6 hours
+**Ceremony logs** - Complete audit trail with verification commands
+**Plugin architecture** - Extensible backend system for multiple formats
 
 ## Implementation
 
@@ -100,13 +100,13 @@ cosign verify-blob --key cosign.pub \
 
 ## Implementation Roadmap
 
-### Phase 1: Core Infrastructure ✅ COMPLETE
-- ✅ Remove ADMIN_TOKEN dependency
-- ✅ Implement keyless OIDC signing
-- ✅ Build plugin architecture
-- ✅ Add automated verification
-- ✅ Generate ceremony logs
-- ✅ Auto-generate verification scripts
+### Phase 1: Core Infrastructure (COMPLETE)
+- Remove ADMIN_TOKEN dependency
+- Implement keyless OIDC signing
+- Build plugin architecture
+- Add automated verification
+- Generate ceremony logs
+- Auto-generate verification scripts
 
 ### Phase 2: Additional Formats (Next)
 - Add In-toto/SLSA attestations backend

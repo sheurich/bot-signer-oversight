@@ -329,27 +329,27 @@ echo "======================================"
 echo "Checking GPG signature..."
 if gpg --import artifact.txt.gpg.pub && \
    gpg --verify artifact.txt.gpg artifact.txt; then
-    echo "✅ GPG signature valid"
+    echo "GPG signature valid"
 else
-    echo "❌ GPG signature FAILED"
+    echo "GPG signature FAILED"
     FAILED=1
 fi
 
 # Cosign verification
 echo "Checking Cosign signature..."
 if cosign verify-blob --bundle artifact.txt.bundle artifact.txt; then
-    echo "✅ Cosign signature valid"
+    echo "Cosign signature valid"
 else
-    echo "❌ Cosign signature FAILED"
+    echo "Cosign signature FAILED"
     FAILED=1
 fi
 
 # In-toto verification
 echo "Checking In-toto attestation..."
 if in-toto-verify --attestation artifact.txt.intoto; then
-    echo "✅ In-toto attestation valid"
+    echo "In-toto attestation valid"
 else
-    echo "❌ In-toto attestation FAILED"
+    echo "In-toto attestation FAILED"
     FAILED=1
 fi
 
@@ -357,19 +357,19 @@ fi
 echo "Checking GitHub attestation..."
 FILE_OID="oid:gitoid:blob:sha256:$(sha256sum artifact.txt | cut -d' ' -f1)"
 if gh attestation verify "$FILE_OID" --repo owner/repo; then
-    echo "✅ GitHub attestation valid"
+    echo "GitHub attestation valid"
 else
-    echo "❌ GitHub attestation FAILED"
+    echo "GitHub attestation FAILED"
     FAILED=1
 fi
 
 if [ $FAILED -eq 0 ]; then
     echo "======================================"
-    echo "✅ All signatures verified"
+    echo "All signatures verified"
     exit 0
 else
     echo "======================================"
-    echo "❌ One or more signatures failed"
+    echo "One or more signatures failed"
     exit 1
 fi
 ```
