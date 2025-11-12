@@ -51,7 +51,9 @@ class GPGKeylessBackend(SigningBackend):
             key_fingerprint = str(key)
 
             if not key_fingerprint:
-                raise RuntimeError("Failed to generate GPG key")
+                # Get error details from GPG
+                stderr = getattr(key, 'stderr', 'No error details')
+                raise RuntimeError(f"Failed to generate GPG key: {stderr}")
 
             # Write artifact to temporary file
             with tempfile.NamedTemporaryFile(
