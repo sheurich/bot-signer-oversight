@@ -34,7 +34,15 @@ class GPGKeylessBackend(SigningBackend):
 
         # Create temporary GPG home directory
         with tempfile.TemporaryDirectory() as gnupghome:
+            # Configure GPG for non-interactive use
+            gpg_conf_path = Path(gnupghome) / "gpg.conf"
+            gpg_conf_path.write_text("pinentry-mode loopback\n")
+
+            gpg_agent_conf_path = Path(gnupghome) / "gpg-agent.conf"
+            gpg_agent_conf_path.write_text("allow-loopback-pinentry\n")
+
             gpg = gnupg.GPG(gnupghome=gnupghome)
+            gpg.encoding = 'utf-8'
 
             # Generate ephemeral key with 10-minute expiration
             key_input = gpg.gen_key_input(
