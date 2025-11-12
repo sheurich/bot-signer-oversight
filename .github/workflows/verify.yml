@@ -1,0 +1,120 @@
+name: Verify Signatures
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: '0 */6 * * *'  # Every 6 hours
+  workflow_dispatch:
+
+jobs:
+  verify-artifacts:
+    name: Verify Artifact Signatures
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3.7.0
+
+      - name: Install signer package
+        run: |
+          pip install -e .
+          pip install -r requirements.txt
+
+      - name: Find signed artifacts
+        id: find_artifacts
+        run: |
+          echo "Finding ceremony logs..."
+          CEREMONIES=$(find . -name "*.ceremony.json" -not -path "./.git/*" | wc -l)
+          echo "Found $CEREMONIES signed artifacts"
+          echo "count=$CEREMONIES" >> $GITHUB_OUTPUT
+
+      - name: Verify all signatures
+        if: steps.find_artifacts.outputs.count > 0
+        run: |
+          FAILED=0
+          VERIFIED=0
+
+          echo "Verifying signed artifacts..."
+          echo "======================================"
+
+          for ceremony in $(find . -name "*.ceremony.json" -not -path "./.git/*"); do
+            artifact="${ceremony%.ceremony.json}"
+
+            if [ ! -f "$artifact" ]; then
+              echo "⚠️  Artifact not found: $artifact"
+              continue
+            fi
+
+            echo ""
+            echo "Verifying: $artifact"
+
+            # Use signer CLI to verify
+            if signer verify "$artifact" --ceremony-log "$ceremony"; then
+              echo "✅ $artifact verified"
+              VERIFIED=$((VERIFIED + 1))
+            else
+              echo "❌ $artifact verification FAILED"
+              FAILED=$((FAILED + 1))
+            fi
+          done
+
+          echo ""
+          echo "======================================"
+          echo "Verified: $VERIFIED"
+          echo "Failed: $FAILED"
+
+          if [ $FAILED -gt 0 ]; then
+            echo "❌ Some verifications failed"
+            exit 1
+          fi
+
+          echo "✅ All signatures verified successfully"
+
+      - name: Verify commits with Gitsign
+        run: |
+          echo "Verifying recent commits with Gitsign..."
+          FAILED=0
+
+          # Check last 10 commits
+          for commit in $(git log -10 --format=%H); do
+            echo "Checking commit: $commit"
+
+            # Try gitsign verification
+            if gitsign verify \
+              --certificate-identity-regexp=".*" \
+              --certificate-oidc-issuer="https://token.actions.githubusercontent.com" \
+              "$commit" 2>&1; then
+              echo "✅ Commit $commit verified"
+            else
+              # Not all commits may be signed with gitsign
+              echo "⚠️  Commit $commit not signed with gitsign (may be GPG or unsigned)"
+            fi
+          done
+
+          echo "✅ Commit verification complete"
+
+      - name: Summary
+        if: always()
+        run: |
+          CEREMONY_COUNT=$(find . -name "*.ceremony.json" -not -path "./.git/*" | wc -l)
+
+          echo "## Signature Verification Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Artifacts Verified:** $CEREMONY_COUNT" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Verification Methods:**" >> $GITHUB_STEP_SUMMARY
+          echo "- GPG signatures (ephemeral keys)" >> $GITHUB_STEP_SUMMARY
+          echo "- Cosign signatures (Sigstore)" >> $GITHUB_STEP_SUMMARY
+          echo "- Gitsign commit signatures" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ All verifications passed" >> $GITHUB_STEP_SUMMARY

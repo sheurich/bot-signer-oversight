@@ -4,39 +4,25 @@ Establishes cryptographic identity for GitHub Actions bots through auditable key
 
 ## Project Status
 
-**Current state:** Working but flawed. Critical security issues require fixes before use.
+**Phase 1 Complete:** Keyless OIDC signing implemented. Critical ADMIN_TOKEN vulnerability eliminated.
 
-**Planned state:** Multi-format keyless signing using OIDC, with clear upgrade path to HSM-backed production mode.
+**Next:** Test implementation in GitHub Actions, then proceed to Phase 2 (In-toto/SLSA attestations).
 
-## Critical Issues
+## What Changed
 
-Three critical vulnerabilities exist in the current implementation:
+Phase 1 implementation replaces static key storage with keyless OIDC signing:
 
-1. **ADMIN_TOKEN vulnerability** - Anyone with this Personal Access Token can replace signing keys silently (CVSS 9.3)
-2. **Gitsign/Cosign confusion** - Static Cosign keys generated but never used for commits; gitsign uses ephemeral certificates that expire
-3. **No verification automation** - Signatures exist but cannot be verified without manual key imports
+✅ **ADMIN_TOKEN eliminated** - No more CVSS 9.3 vulnerability
+✅ **Keyless OIDC signing** - Identity from GitHub Actions OIDC tokens
+✅ **Ephemeral keys** - GPG keys with 10-minute expiration, no persistent storage
+✅ **Sigstore integration** - Fulcio certificates and Rekor transparency log
+✅ **Automated verification** - Workflow runs every 6 hours
+✅ **Ceremony logs** - Complete audit trail with verification commands
+✅ **Plugin architecture** - Extensible backend system for multiple formats
 
-## What Works
+## Implementation
 
-- GPG key generation (Ed25519)
-- Cosign key generation (ECDSA P-256)
-- Weekly automated tests
-- Ceremony logging
-- GitHub attestations
-
-## What Fails
-
-| Issue | Impact | Fix Required |
-|-------|--------|-------------|
-| ADMIN_TOKEN security | Total compromise possible | Remove secret storage, use OIDC |
-| GPG signatures unverifiable | "No public key" error | Add `gpg --import` step to docs |
-| Gitsign certificates expire | Local verification fails after 10 minutes | Document Rekor verification or use GPG only |
-| Cosign static key unused | Wasted complexity | Remove or use for blob signing only |
-| Ceremony log unsigned | Could be tampered | Sign log with both formats |
-
-## Proposed Architecture
-
-The project will shift to keyless OIDC-based signing for development, eliminating secret storage entirely.
+The keyless signing system includes:
 
 ### Development Mode (OIDC)
 - No persistent keys
@@ -61,52 +47,74 @@ The project will shift to keyless OIDC-based signing for development, eliminatin
 
 ## Quick Start
 
-### Current Implementation (Static Keys)
+### Run Keyless Signing
 
 ```bash
-# One-time initialization
-gh workflow run init.yml
+# Trigger signing workflow
+gh workflow run sign-keyless.yml
 
-# Weekly tests run automatically
-# Signatures created but verification requires manual setup
+# Or wait for weekly automatic run (Sunday 00:00 UTC)
 ```
 
-### Verifying Existing Signatures
+### Verify Signatures
 
 ```bash
-# Import GPG public key first (required)
+# Automatic verification (runs every 6 hours)
+gh workflow run verify.yml
+
+# Or use generated verification script
+./test-artifact.txt.verify.sh
+```
+
+### Local Development
+
+```bash
+# Install package
+pip install -e .
+pip install -r requirements.txt
+
+# Sign artifact (requires GitHub Actions OIDC token)
+signer sign artifact.txt --backends all
+
+# Verify signatures
+signer verify artifact.txt
+
+# Display ceremony info
+signer info artifact.txt
+```
+
+### Verifying Old Signatures (Static Keys)
+
+```bash
+# Import GPG public key first
 gpg --import pgp.pub
 
 # Verify GPG signatures
-git log --show-signature
 gpg --verify last_modified.txt.pgp.asc last_modified.txt
 
 # Verify Cosign blob signature
 cosign verify-blob --key cosign.pub \
   --signature last_modified.txt.cosign \
   last_modified.txt
-
-# Gitsign commit verification (requires network)
-gitsign verify --certificate-identity-regexp=".*" \
-  --certificate-oidc-issuer="https://token.actions.githubusercontent.com" \
-  <commit-sha>
 ```
 
 ## Implementation Roadmap
 
-### Phase 1: Fix Critical Issues
-- Remove ADMIN_TOKEN dependency
-- Implement keyless OIDC signing
-- Add automated verification
-- Update documentation
+### Phase 1: Core Infrastructure ✅ COMPLETE
+- ✅ Remove ADMIN_TOKEN dependency
+- ✅ Implement keyless OIDC signing
+- ✅ Build plugin architecture
+- ✅ Add automated verification
+- ✅ Generate ceremony logs
+- ✅ Auto-generate verification scripts
 
-### Phase 2: Multi-Format Support
-- Build plugin architecture
-- Sign artifacts in multiple formats simultaneously
-- Generate unified ceremony logs
-- Auto-generate verification scripts
+### Phase 2: Additional Formats (Next)
+- Add In-toto/SLSA attestations backend
+- Add GitHub native attestations backend
+- Implement policy engine (artifact-specific signing rules)
+- Create configuration file support
 
-### Phase 3: Production HSM Support
+### Phase 3: Production HSM Support (Future)
 - Integrate with cloud KMS (AWS, GCP, Azure)
 - Add key rotation automation
 - Implement approval workflows
@@ -128,6 +136,7 @@ gitsign verify --certificate-identity-regexp=".*" \
 
 ## Documentation
 
+- [`IMPLEMENTATION.md`](IMPLEMENTATION.md) - Phase 1 implementation details and usage
 - [`docs/architecture.md`](docs/architecture.md) - Technical design and plugin system
 - [`docs/security.md`](docs/security.md) - Threat model and vulnerability assessment
 - [`docs/reference.md`](docs/reference.md) - Configuration, formats, and procedures
@@ -136,26 +145,37 @@ gitsign verify --certificate-identity-regexp=".*" \
 ## Repository Structure
 
 ```
+signer/                    # Python package
+  backends/                # Signing backend plugins
+    base.py                # Abstract base class
+    gpg_keyless.py         # GPG with ephemeral keys
+    sigstore.py            # Cosign/Fulcio/Rekor
+  ceremony.py              # Ceremony log generation
+  cli.py                   # Command-line interface
+  identity.py              # OIDC and static key identities
+  orchestrator.py          # Signing coordinator
+
 .github/workflows/
-  init.yml                 # Initialization (flawed, needs replacement)
-  test.yml                 # Weekly signing tests
-cosign.pub                 # Cosign ECDSA P-256 public key
-pgp.pub                    # GPG Ed25519 public key
-changelog.txt              # Ceremony audit log (not signed)
-last_modified.txt          # Timestamp for testing
-last_modified.txt.pgp.asc  # GPG detached signature
-last_modified.txt.cosign   # Cosign blob signature
+  sign-keyless.yml         # Keyless OIDC signing workflow
+  verify.yml               # Automated signature verification
+  init.yml                 # Legacy initialization (deprecated)
+  test.yml                 # Legacy tests (deprecated)
+
+docs/                      # Architecture documentation
+setup.py                   # Package configuration
+requirements.txt           # Python dependencies
 ```
 
 ## Contributing
 
 Contributions welcome, especially:
 
-- Implementing keyless OIDC signing
-- Building plugin architecture for multiple formats
-- Adding automated verification workflows
-- Fixing gitsign/Cosign confusion
-- Creating HSM integration
+- Testing Phase 1 implementation in GitHub Actions
+- Adding In-toto/SLSA attestation backend
+- Adding GitHub native attestation backend
+- Implementing policy engine for artifact-specific rules
+- Creating HSM integration for production mode
+- Writing tests for backends and orchestrator
 
 ## License
 

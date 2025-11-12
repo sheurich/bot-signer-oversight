@@ -1,0 +1,100 @@
+name: Keyless OIDC Signing
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * 0'  # Weekly on Sunday
+
+permissions:
+  id-token: write      # Required for OIDC token
+  contents: write      # Required to commit signatures
+  attestations: write  # Required for GitHub attestations
+
+jobs:
+  sign:
+    name: Sign with Keyless OIDC
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3.7.0
+
+      - name: Install Gitsign
+        uses: sigstore/gitsign-installer@v0.10.2
+
+      - name: Install signer package
+        run: |
+          pip install -e .
+          pip install -r requirements.txt
+
+      - name: Create test artifact
+        run: |
+          echo "Signed at $(date -Iseconds)" > test-artifact.txt
+          echo "Workflow: ${{ github.workflow }}" >> test-artifact.txt
+          echo "Run: ${{ github.run_id }}" >> test-artifact.txt
+
+      - name: Sign artifact with keyless OIDC
+        run: |
+          # Sign using CLI tool (acquires OIDC token automatically)
+          signer sign test-artifact.txt --backends all
+
+          echo "✅ Signing complete"
+          ls -lh test-artifact.txt*
+
+      - name: Display ceremony log
+        run: |
+          echo "Ceremony log:"
+          cat test-artifact.txt.ceremony.json | jq .
+
+      - name: Configure git for Gitsign
+        run: |
+          git config --global commit.gpgsign true
+          git config --global tag.gpgsign true
+          git config --global gpg.x509.program gitsign
+          git config --global gpg.format x509
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Commit signatures
+        run: |
+          # Add all signature files
+          git add test-artifact.txt*
+
+          # Commit with gitsign (keyless x509 signature)
+          git commit -m "Keyless signing test at $(date -Iseconds)"
+
+          echo "✅ Commit created with gitsign signature"
+
+      - name: Push changes
+        run: |
+          git push origin main
+          echo "✅ Changes pushed to repository"
+
+      - name: Summary
+        run: |
+          echo "## Keyless Signing Complete 🎉" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Artifact:** test-artifact.txt" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Signatures Created:**" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ GPG (ephemeral Ed25519 key)" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Cosign (Sigstore bundle)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Identity:** GitHub Actions OIDC" >> $GITHUB_STEP_SUMMARY
+          echo "- Issuer: token.actions.githubusercontent.com" >> $GITHUB_STEP_SUMMARY
+          echo "- Subject: repo:${{ github.repository }}:ref:${{ github.ref }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Verification:**" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo './test-artifact.txt.verify.sh' >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
