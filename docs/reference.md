@@ -963,6 +963,47 @@ permissions:
   attestations: write
 ```
 
+### "Not running in GitHub Actions"
+
+**Problem:** OIDC tokens only available in GitHub Actions
+
+**Solution:** Run workflows instead of local commands:
+```bash
+gh workflow run sign-keyless.yml
+```
+
+### "cosign: command not found"
+
+**Solution:** Install Cosign:
+```bash
+# macOS
+brew install cosign
+
+# Linux
+curl -LO https://github.com/sigstore/cosign/releases/latest/download/cosign-linux-amd64
+sudo install cosign-linux-amd64 /usr/local/bin/cosign
+```
+
+### "gpg: key generation failed"
+
+**Solution:** Ensure GnuPG is installed:
+```bash
+# macOS
+brew install gnupg
+
+# Linux
+sudo apt-get install gnupg
+```
+
+### Verification Fails
+
+**Debugging steps:**
+
+1. Check ceremony log exists: `ls *.ceremony.json`
+2. Verify artifact unchanged: `sha256sum artifact`
+3. Check Rekor entry: `rekor-cli search --artifact artifact`
+4. Review ceremony log: `jq . artifact.ceremony.json`
+
 ## References
 
 - [Sigstore Documentation](https://docs.sigstore.dev/) - Fulcio, Rekor, Cosign

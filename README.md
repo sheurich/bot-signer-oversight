@@ -2,27 +2,16 @@
 
 Establishes cryptographic identity for GitHub Actions bots through auditable key ceremonies and signed operations.
 
-## Project Status
-
-**Phase 1 Complete:** Keyless OIDC signing implemented. Critical ADMIN_TOKEN vulnerability eliminated.
-
-**Next:** Test implementation in GitHub Actions, then proceed to Phase 2 (In-toto/SLSA attestations).
-
-## What Changed
-
-Phase 1 implementation replaces static key storage with keyless OIDC signing:
-
-**ADMIN_TOKEN eliminated** - No more CVSS 9.3 vulnerability
-**Keyless OIDC signing** - Identity from GitHub Actions OIDC tokens
-**Ephemeral keys** - GPG keys with 10-minute expiration, no persistent storage
-**Sigstore integration** - Fulcio certificates and Rekor transparency log
-**Automated verification** - Workflow runs every 6 hours
-**Ceremony logs** - Complete audit trail with verification commands
-**Plugin architecture** - Extensible backend system for multiple formats
-
 ## Implementation
 
 The keyless signing system includes:
+
+### How It Works
+
+1. GitHub Actions provides OIDC token with workflow identity
+2. Signing backends (Cosign, GPG) generate ephemeral keys
+3. Signatures logged to Rekor transparency log
+4. Ceremony log records metadata and verification commands
 
 ### Development Mode (OIDC)
 - No persistent keys
@@ -52,6 +41,9 @@ The keyless signing system includes:
 ```bash
 # Trigger signing workflow
 gh workflow run sign-keyless.yml
+
+# Check workflow status
+gh run list --workflow=sign-keyless.yml
 
 # Or wait for weekly automatic run (Sunday 00:00 UTC)
 ```
@@ -98,28 +90,6 @@ cosign verify-blob --key cosign.pub \
   last_modified.txt
 ```
 
-## Implementation Roadmap
-
-### Phase 1: Core Infrastructure (COMPLETE)
-- Remove ADMIN_TOKEN dependency
-- Implement keyless OIDC signing
-- Build plugin architecture
-- Add automated verification
-- Generate ceremony logs
-- Auto-generate verification scripts
-
-### Phase 2: Additional Formats (Next)
-- Add In-toto/SLSA attestations backend
-- Add GitHub native attestations backend
-- Implement policy engine (artifact-specific signing rules)
-- Create configuration file support
-
-### Phase 3: Production HSM Support (Future)
-- Integrate with cloud KMS (AWS, GCP, Azure)
-- Add key rotation automation
-- Implement approval workflows
-- Support hardware HSMs
-
 ## Use Cases
 
 ### Appropriate For
@@ -136,7 +106,7 @@ cosign verify-blob --key cosign.pub \
 
 ## Documentation
 
-- [`IMPLEMENTATION.md`](IMPLEMENTATION.md) - Phase 1 implementation details and usage
+- [`CHANGELOG.md`](CHANGELOG.md) - Version history and changes
 - [`docs/architecture.md`](docs/architecture.md) - Technical design and plugin system
 - [`docs/security.md`](docs/security.md) - Threat model and vulnerability assessment
 - [`docs/reference.md`](docs/reference.md) - Configuration, formats, and procedures
@@ -168,14 +138,7 @@ requirements.txt           # Python dependencies
 
 ## Contributing
 
-Contributions welcome, especially:
-
-- Testing Phase 1 implementation in GitHub Actions
-- Adding In-toto/SLSA attestation backend
-- Adding GitHub native attestation backend
-- Implementing policy engine for artifact-specific rules
-- Creating HSM integration for production mode
-- Writing tests for backends and orchestrator
+Contributions welcome. See [CHANGELOG.md](CHANGELOG.md#future-work) for planned work and roadmap.
 
 ## License
 

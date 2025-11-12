@@ -522,6 +522,52 @@ Organizations using this system must accept:
 6. Limited audit (without Enterprise, no secret tracking)
 7. Workflow review dependency (security depends on human review)
 
+## Migration from Static Keys
+
+### Comparison: Static vs Keyless
+
+| Aspect | Static Keys | Keyless OIDC |
+|--------|-------------|--------------|
+| Key Storage | GitHub Secrets (ADMIN_TOKEN) | No persistent keys |
+| ADMIN_TOKEN | Required (CVSS 9.3 vulnerability) | Eliminated |
+| Identity | Static keypairs | GitHub Actions OIDC token |
+| GPG Keys | Persistent, stored in secrets | Ephemeral, 10-minute lifetime |
+| Cosign Keys | Static ECDSA key | Fulcio-issued certificates |
+| Commit Signing | GPG with static key | Gitsign with x509 certificates |
+| Verification | Requires key import | Rekor transparency log |
+| Security | Single point of compromise | Distributed trust (OIDC + Rekor) |
+
+### Security Improvements
+
+**1. No Secret Storage**
+- ADMIN_TOKEN removed (eliminates CVSS 9.3 vulnerability)
+- No private keys in GitHub Secrets
+- Keys generated on-demand, expire after 10 minutes
+
+**2. OIDC-Based Identity**
+- Identity from GitHub's OIDC provider
+- Token contains workflow context (repo, ref, SHA)
+- Trust anchored in GitHub platform, not static keys
+
+**3. Transparency Logging**
+- All signatures logged to Rekor
+- Public, immutable, append-only log
+- Long-term verification even after certificates expire
+
+**4. Ceremony Logs**
+- Complete audit trail for each signing operation
+- Links signatures to workflow run
+- Includes identity claims and verification commands
+
+### Migration Steps
+
+Existing users should:
+
+1. Remove static secrets from GitHub repository
+2. Update workflows to use `id-token: write` permission
+3. Switch to keyless signing workflows
+4. Verify signatures using Rekor transparency log
+
 ## References
 
 - [NIST SP 800-204D](https://csrc.nist.gov/publications/detail/sp/800-204d/draft) - DevSecOps
