@@ -44,18 +44,19 @@ class GPGKeylessBackend(SigningBackend):
             gpg = gnupg.GPG(gnupghome=gnupghome)
             gpg.encoding = 'utf-8'
 
-            # Generate ephemeral key with 10-minute expiration
-            key_input = gpg.gen_key_input(
-                key_type="EDDSA" if self.key_type == "Ed25519" else "RSA",
-                key_curve="ed25519" if self.key_type == "Ed25519" else None,
-                key_length=4096 if self.key_type == "RSA-4096" else None,
-                name_real=identity.subject,
-                name_email=f"{identity.subject_hash}@oidc.sigstore.dev",
-                expire_date="10m",  # Match OIDC token lifetime
-                passphrase="",  # No password for automation
-            )
+            # Generate batch key generation parameters
+            batch_params = f"""
+                %no-protection
+                Key-Type: eddsa
+                Key-Curve: ed25519
+                Key-Usage: sign
+                Name-Real: {identity.subject}
+                Name-Email: {identity.subject_hash}@oidc.sigstore.dev
+                Expire-Date: 10m
+                %commit
+            """
 
-            key = gpg.gen_key(key_input)
+            key = gpg.gen_key(batch_params)
             key_fingerprint = str(key)
 
             if not key_fingerprint:
