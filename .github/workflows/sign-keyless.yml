@@ -30,7 +30,12 @@ jobs:
         uses: sigstore/cosign-installer@v3.7.0
 
       - name: Install Gitsign
-        uses: sigstore/gitsign-installer@v0.10.2
+        run: |
+          # Install gitsign for commit signing
+          GITSIGN_VERSION="0.10.2"
+          curl -sSfL "https://github.com/sigstore/gitsign/releases/download/v${GITSIGN_VERSION}/gitsign_${GITSIGN_VERSION}_linux_amd64" -o gitsign
+          sudo install gitsign /usr/local/bin/gitsign
+          gitsign version
 
       - name: Install signer package
         run: |
