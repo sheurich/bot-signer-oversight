@@ -8,6 +8,7 @@ from .identity import OIDCIdentity
 from .orchestrator import SigningOrchestrator
 from .backends.gpg_keyless import GPGKeylessBackend
 from .backends.sigstore import SigstoreBackend
+from .config import load_config, load_default_config, ConfigError
 
 
 @click.group()
@@ -22,14 +23,13 @@ def main():
 @click.option(
     "--config",
     type=click.Path(exists=True),
-    help="Configuration file (YAML)",
+    help="Configuration file (YAML). Defaults to .signing/config.yaml if present.",
 )
 @click.option(
     "--backends",
     multiple=True,
     type=click.Choice(["gpg", "cosign", "all"]),
-    default=["all"],
-    help="Signing backends to use",
+    help="Signing backends to use (overrides config file)",
 )
 @click.option(
     "--oidc-audience",
@@ -50,10 +50,24 @@ def sign(artifact, config, backends, oidc_audience, no_ceremony_log, no_verify_s
     """Sign an artifact with keyless OIDC signing."""
     try:
         # Load configuration
-        config_data = {}
+        signing_config = None
         if config:
-            with open(config, "r") as f:
-                config_data = yaml.safe_load(f)
+            # Load specified config file
+            try:
+                signing_config = load_config(config)
+                click.echo(f"Loaded config: {config}")
+            except (FileNotFoundError, ConfigError) as e:
+                click.echo(f"❌ Config error: {e}", err=True)
+                sys.exit(1)
+        else:
+            # Try to load default config
+            signing_config = load_default_config()
+            if signing_config:
+                click.echo("Loaded default config: .signing/config.yaml")
+
+        # Apply environment overrides if config exists
+        if signing_config:
+            signing_config = signing_config.apply_environment_overrides()
 
         # Get OIDC identity
         click.echo("Acquiring OIDC token from GitHub Actions...")
@@ -64,24 +78,58 @@ def sign(artifact, config, backends, oidc_audience, no_ceremony_log, no_verify_s
             click.echo(f"❌ Failed to acquire OIDC token: {e}", err=True)
             sys.exit(1)
 
-        # Initialize backends
-        backend_list = []
-
         # Determine which backends to use
-        if "all" in backends:
-            use_backends = ["gpg", "cosign"]
+        use_backends = []
+
+        if signing_config:
+            # Check if CLI specified backends
+            if backends:
+                # Merge CLI args with config (CLI takes precedence)
+                if "all" in backends:
+                    use_backends = ["gpg", "cosign"]
+                else:
+                    use_backends = list(backends)
+
+                signing_config = signing_config.merge_with_cli_args(backends=use_backends)
+            else:
+                # Check for policy-based backend selection
+                policy_backends = signing_config.get_required_backends(artifact)
+                if policy_backends:
+                    use_backends = policy_backends
+                    click.echo(f"Using policy-based backends: {', '.join(use_backends)}")
+                else:
+                    # Use enabled backends from config
+                    use_backends = signing_config.get_enabled_backends()
+
+            # Initialize backends from config
+            backend_list = []
+            for backend_name in use_backends:
+                backend_config = signing_config.get_backend_config(backend_name)
+
+                if backend_name == "gpg":
+                    backend_list.append(GPGKeylessBackend(backend_config))
+                    click.echo("Enabled backend: GPG")
+                elif backend_name == "cosign":
+                    backend_list.append(SigstoreBackend(backend_config))
+                    click.echo("Enabled backend: Cosign")
+                else:
+                    click.echo(f"⚠️  Unknown backend: {backend_name}", err=True)
+
         else:
-            use_backends = list(backends)
+            # No config file - use CLI args or defaults
+            if not backends or "all" in backends:
+                use_backends = ["gpg", "cosign"]
+            else:
+                use_backends = list(backends)
 
-        if "gpg" in use_backends:
-            gpg_config = config_data.get("backends", {}).get("gpg", {})
-            backend_list.append(GPGKeylessBackend(gpg_config))
-            click.echo("Enabled backend: GPG")
-
-        if "cosign" in use_backends:
-            cosign_config = config_data.get("backends", {}).get("cosign", {})
-            backend_list.append(SigstoreBackend(cosign_config))
-            click.echo("Enabled backend: Cosign")
+            backend_list = []
+            for backend_name in use_backends:
+                if backend_name == "gpg":
+                    backend_list.append(GPGKeylessBackend({}))
+                    click.echo("Enabled backend: GPG")
+                elif backend_name == "cosign":
+                    backend_list.append(SigstoreBackend({}))
+                    click.echo("Enabled backend: Cosign")
 
         if not backend_list:
             click.echo("❌ No backends enabled", err=True)
@@ -128,7 +176,7 @@ def sign(artifact, config, backends, oidc_audience, no_ceremony_log, no_verify_s
 @click.option(
     "--config",
     type=click.Path(exists=True),
-    help="Configuration file (YAML)",
+    help="Configuration file (YAML). Defaults to .signing/config.yaml if present.",
 )
 def verify(artifact, ceremony_log, config):
     """Verify artifact signatures using ceremony log."""
@@ -142,16 +190,34 @@ def verify(artifact, ceremony_log, config):
             sys.exit(1)
 
         # Load configuration
-        config_data = {}
+        signing_config = None
         if config:
-            with open(config, "r") as f:
-                config_data = yaml.safe_load(f)
+            try:
+                signing_config = load_config(config)
+            except (FileNotFoundError, ConfigError) as e:
+                click.echo(f"❌ Config error: {e}", err=True)
+                sys.exit(1)
+        else:
+            signing_config = load_default_config()
+
+        # Apply environment overrides if config exists
+        if signing_config:
+            signing_config = signing_config.apply_environment_overrides()
 
         # Initialize backends
-        backend_list = [
-            GPGKeylessBackend(config_data.get("backends", {}).get("gpg", {})),
-            SigstoreBackend(config_data.get("backends", {}).get("cosign", {})),
-        ]
+        backend_list = []
+        if signing_config:
+            gpg_config = signing_config.get_backend_config("gpg")
+            cosign_config = signing_config.get_backend_config("cosign")
+            backend_list = [
+                GPGKeylessBackend(gpg_config),
+                SigstoreBackend(cosign_config),
+            ]
+        else:
+            backend_list = [
+                GPGKeylessBackend({}),
+                SigstoreBackend({}),
+            ]
 
         # Create orchestrator
         orchestrator = SigningOrchestrator(backend_list)

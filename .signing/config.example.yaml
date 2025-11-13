@@ -1,0 +1,117 @@
+# Signer Configuration
+# Copy this file to .signing/config.yaml and customize as needed
+
+# Backend Configuration
+# Enable/disable signing backends and configure their options
+backends:
+  # GPG keyless signing with ephemeral keys
+  gpg:
+    # Enable/disable this backend
+    enabled: true
+
+    # Key type for ephemeral GPG keys
+    # Options: Ed25519 (recommended), RSA
+    key_type: Ed25519
+
+    # Use keyless mode with ephemeral keys bound to OIDC identity
+    # Set to false to use pre-existing keys (not recommended)
+    keyless_mode: true
+
+    # Export public key alongside signature
+    # Public key needed for verification of ephemeral keys
+    public_key_export: true
+
+  # Sigstore/Cosign keyless signing
+  cosign:
+    # Enable/disable this backend
+    enabled: true
+
+    # Fulcio certificate authority URL
+    # Fulcio issues short-lived certificates for keyless signing
+    # Default: https://fulcio.sigstore.dev
+    fulcio_url: https://fulcio.sigstore.dev
+
+    # Rekor transparency log URL
+    # All signatures are logged to Rekor for auditability
+    # Default: https://rekor.sigstore.dev
+    rekor_url: https://rekor.sigstore.dev
+
+    # Use keyless mode with OIDC identity
+    keyless_mode: true
+
+  # In-toto attestations (SLSA provenance)
+  # NOTE: This backend is not yet implemented
+  # Included as example for future development
+  intoto:
+    # Enable/disable this backend
+    enabled: false
+
+    # SLSA provenance version
+    # Options: v1.0, v0.2
+    slsa_version: v1.0
+
+    # Include build environment details
+    include_build_env: true
+
+    # Include dependency information
+    include_dependencies: false
+
+# Policy Rules
+# Define which backends are required for specific artifact patterns
+# Rules are evaluated in order; first match wins
+policies:
+  # Archive files require both GPG and in-toto signatures
+  - match: "*.tar.gz"
+    require: [gpg, intoto]
+
+  - match: "*.zip"
+    require: [gpg, intoto]
+
+  # Executables require Cosign signature for Sigstore transparency
+  - match: "*.exe"
+    require: [cosign]
+
+  - match: "*.bin"
+    require: [cosign]
+
+  # Container images require Cosign
+  - match: "*.oci"
+    require: [cosign]
+
+  # Text files and documentation get GPG signatures only
+  - match: "*.txt"
+    require: [gpg]
+
+  - match: "*.md"
+    require: [gpg]
+
+  # Default: all enabled backends if no policy matches
+  # (no policy entry needed - this is automatic behavior)
+
+# Environment Variable Overrides
+# These environment variables can override config values:
+#
+# SIGNER_FULCIO_URL      - Override Fulcio URL
+# SIGNER_REKOR_URL       - Override Rekor URL
+# SIGNER_GPG_KEY_TYPE    - Override GPG key type
+#
+# Example:
+#   export SIGNER_FULCIO_URL=https://fulcio.example.com
+#   signer sign artifact.bin
+
+# Usage Examples
+#
+# Use config file explicitly:
+#   signer sign artifact.txt --config .signing/config.yaml
+#
+# Use default config (.signing/config.yaml in current or parent directories):
+#   signer sign artifact.txt
+#
+# Override with CLI (CLI args take precedence):
+#   signer sign artifact.txt --backends gpg
+#   signer sign artifact.txt --backends cosign gpg
+#
+# Policy-based signing:
+#   # Create .signing/config.yaml with policies
+#   signer sign myapp.tar.gz  # Uses gpg and intoto per policy
+#   signer sign README.md     # Uses gpg only per policy

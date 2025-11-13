@@ -459,3 +459,339 @@ class TestCeremonyLog:
         assert result["identity"]["type"] == "static_key"
         assert result["identity"]["key_id"] == "GPG_KEY_123"
         assert result["identity"]["key_type"] == "gpg"
+
+    def test_init_with_chain_previous(
+        self, sample_artifact, sample_identity, sample_signatures
+    ):
+        """Test initialization with chain_previous parameter."""
+        previous_hash = "abc123def456"
+
+        log = CeremonyLog(
+            artifact_path=str(sample_artifact),
+            identity=sample_identity,
+            signatures=sample_signatures,
+            chain_previous=previous_hash,
+        )
+
+        assert log.chain_previous == previous_hash
+
+    def test_to_dict_with_chain_previous(
+        self, sample_artifact, sample_identity, sample_signatures
+    ):
+        """Test to_dict includes chain_previous when set."""
+        previous_hash = "abc123def456"
+
+        log = CeremonyLog(
+            artifact_path=str(sample_artifact),
+            identity=sample_identity,
+            signatures=sample_signatures,
+            chain_previous=previous_hash,
+        )
+
+        result = log.to_dict()
+
+        assert result["chain_previous"] == previous_hash
+
+    def test_to_dict_without_chain_previous(
+        self, sample_artifact, sample_identity, sample_signatures
+    ):
+        """Test to_dict omits chain_previous when not set."""
+        log = CeremonyLog(
+            artifact_path=str(sample_artifact),
+            identity=sample_identity,
+            signatures=sample_signatures,
+        )
+
+        result = log.to_dict()
+
+        assert "chain_previous" not in result
+
+    def test_get_log_fingerprint(self, sample_artifact, sample_identity):
+        """Test get_log_fingerprint returns consistent hash."""
+        log = CeremonyLog(
+            artifact_path=str(sample_artifact),
+            identity=sample_identity,
+            signatures=[],
+        )
+
+        fingerprint1 = log.get_log_fingerprint()
+        fingerprint2 = log.get_log_fingerprint()
+
+        # Should be consistent
+        assert fingerprint1 == fingerprint2
+        # Should be SHA256 hex (64 chars)
+        assert len(fingerprint1) == 64
+
+    def test_get_log_fingerprint_excludes_signature(
+        self, sample_artifact, sample_identity
+    ):
+        """Test fingerprint excludes log signature."""
+        log = CeremonyLog(
+            artifact_path=str(sample_artifact),
+            identity=sample_identity,
+            signatures=[],
+        )
+
+        fingerprint_before = log.get_log_fingerprint()
+
+        # Add log signature
+        log.log_signature = {
+            "format": "gpg",
+            "fingerprint": "test",
+            "signed_at": "2025-11-13T12:00:00+00:00",
+        }
+
+        fingerprint_after = log.get_log_fingerprint()
+
+        # Fingerprint should remain the same
+        assert fingerprint_before == fingerprint_after
+
+    def test_sign_log(self, sample_artifact, sample_identity, tmp_path):
+        """Test signing the ceremony log."""
+        from unittest.mock import Mock
+        from signer.backends.base import Signature
+
+        log = CeremonyLog(
+            artifact_path=str(sample_artifact),
+            identity=sample_identity,
+            signatures=[],
+        )
+
+        # Mock backend
+        mock_backend = Mock()
+        mock_signature = Signature(
+            format="gpg",
+            data=b"mock signature data",
+            metadata={"key_fingerprint": "ABCD1234"},
+            files={},
+        )
+        mock_backend.sign.return_value = mock_signature
+
+        sig_path = tmp_path / "ceremony.sig"
+        result_path = log.sign_log(mock_backend, sample_identity, str(sig_path))
+
+        # Verify signature file created
+        assert result_path == str(sig_path)
+        assert sig_path.exists()
+        assert sig_path.read_bytes() == b"mock signature data"
+
+        # Verify log_signature metadata stored
+        assert log.log_signature is not None
+        assert log.log_signature["format"] == "gpg"
+        assert log.log_signature["fingerprint"] == log.get_log_fingerprint()
+        assert "signed_at" in log.log_signature
+        assert log.log_signature["signature_file"] == str(sig_path)
+
+    def test_sign_log_default_path(self, sample_artifact, sample_identity):
+        """Test sign_log uses default path."""
+        from unittest.mock import Mock
+        from signer.backends.base import Signature
+
+        log = CeremonyLog(
+            artifact_path=str(sample_artifact),
+            identity=sample_identity,
+            signatures=[],
+        )
+
+        mock_backend = Mock()
+        mock_signature = Signature(
+            format="gpg",
+            data=b"mock signature data",
+            metadata={},
+            files={},
+        )
+        mock_backend.sign.return_value = mock_signature
+
+        result_path = log.sign_log(mock_backend, sample_identity)
+
+        expected_path = f"{sample_artifact}.ceremony.json.sig"
+        assert result_path == expected_path
+
+    def test_sign_log_included_in_to_dict(self, sample_artifact, sample_identity):
+        """Test signed log includes signature in to_dict."""
+        from unittest.mock import Mock
+        from signer.backends.base import Signature
+
+        log = CeremonyLog(
+            artifact_path=str(sample_artifact),
+            identity=sample_identity,
+            signatures=[],
+        )
+
+        mock_backend = Mock()
+        mock_signature = Signature(
+            format="gpg",
+            data=b"mock signature data",
+            metadata={"key_fingerprint": "ABCD1234"},
+            files={},
+        )
+        mock_backend.sign.return_value = mock_signature
+
+        log.sign_log(mock_backend, sample_identity)
+
+        result = log.to_dict()
+
+        assert "log_signature" in result
+        assert result["log_signature"]["format"] == "gpg"
+        assert result["log_signature"]["fingerprint"] is not None
+
+    def test_verify_log_signature_valid(self, sample_artifact, sample_identity, tmp_path):
+        """Test verify_log_signature with valid signature."""
+        from unittest.mock import Mock
+        from signer.backends.base import Signature
+
+        log = CeremonyLog(
+            artifact_path=str(sample_artifact),
+            identity=sample_identity,
+            signatures=[],
+        )
+
+        # Mock backend for signing
+        mock_backend = Mock()
+        mock_signature = Signature(
+            format="gpg",
+            data=b"mock signature data",
+            metadata={"key_fingerprint": "ABCD1234"},
+            files={},
+        )
+        mock_backend.sign.return_value = mock_signature
+
+        sig_path = tmp_path / "ceremony.sig"
+        log.sign_log(mock_backend, sample_identity, str(sig_path))
+
+        # Mock backend for verification
+        mock_backend.verify.return_value = True
+
+        result = log.verify_log_signature(mock_backend, str(sig_path))
+
+        assert result is True
+
+    def test_verify_log_signature_invalid(self, sample_artifact, sample_identity, tmp_path):
+        """Test verify_log_signature with invalid signature."""
+        from unittest.mock import Mock
+        from signer.backends.base import Signature
+
+        log = CeremonyLog(
+            artifact_path=str(sample_artifact),
+            identity=sample_identity,
+            signatures=[],
+        )
+
+        mock_backend = Mock()
+        mock_signature = Signature(
+            format="gpg",
+            data=b"mock signature data",
+            metadata={},
+            files={},
+        )
+        mock_backend.sign.return_value = mock_signature
+
+        sig_path = tmp_path / "ceremony.sig"
+        log.sign_log(mock_backend, sample_identity, str(sig_path))
+
+        # Mock backend returns invalid
+        mock_backend.verify.return_value = False
+
+        result = log.verify_log_signature(mock_backend, str(sig_path))
+
+        assert result is False
+
+    def test_verify_log_signature_no_signature(self, sample_artifact, sample_identity):
+        """Test verify_log_signature when log not signed."""
+        from unittest.mock import Mock
+
+        log = CeremonyLog(
+            artifact_path=str(sample_artifact),
+            identity=sample_identity,
+            signatures=[],
+        )
+
+        mock_backend = Mock()
+
+        result = log.verify_log_signature(mock_backend)
+
+        assert result is False
+
+    def test_verify_log_signature_missing_file(self, sample_artifact, sample_identity, tmp_path):
+        """Test verify_log_signature when signature file missing."""
+        from unittest.mock import Mock
+        from signer.backends.base import Signature
+
+        log = CeremonyLog(
+            artifact_path=str(sample_artifact),
+            identity=sample_identity,
+            signatures=[],
+        )
+
+        mock_backend = Mock()
+        mock_signature = Signature(
+            format="gpg",
+            data=b"mock signature data",
+            metadata={},
+            files={},
+        )
+        mock_backend.sign.return_value = mock_signature
+
+        sig_path = tmp_path / "ceremony.sig"
+        log.sign_log(mock_backend, sample_identity, str(sig_path))
+
+        # Delete signature file
+        sig_path.unlink()
+
+        result = log.verify_log_signature(mock_backend, str(sig_path))
+
+        assert result is False
+
+    def test_verify_log_signature_fingerprint_mismatch(
+        self, sample_artifact, sample_identity, tmp_path
+    ):
+        """Test verify_log_signature detects fingerprint mismatch."""
+        from unittest.mock import Mock
+        from signer.backends.base import Signature
+
+        log = CeremonyLog(
+            artifact_path=str(sample_artifact),
+            identity=sample_identity,
+            signatures=[],
+        )
+
+        mock_backend = Mock()
+        mock_signature = Signature(
+            format="gpg",
+            data=b"mock signature data",
+            metadata={},
+            files={},
+        )
+        mock_backend.sign.return_value = mock_signature
+
+        sig_path = tmp_path / "ceremony.sig"
+        log.sign_log(mock_backend, sample_identity, str(sig_path))
+
+        # Tamper with fingerprint
+        log.log_signature["fingerprint"] = "wrong_fingerprint"
+
+        result = log.verify_log_signature(mock_backend, str(sig_path))
+
+        assert result is False
+
+    def test_log_chaining(self, sample_artifact, sample_identity):
+        """Test log chaining with previous log hash."""
+        log1 = CeremonyLog(
+            artifact_path=str(sample_artifact),
+            identity=sample_identity,
+            signatures=[],
+        )
+
+        fingerprint1 = log1.get_log_fingerprint()
+
+        # Create second log chained to first
+        log2 = CeremonyLog(
+            artifact_path=str(sample_artifact),
+            identity=sample_identity,
+            signatures=[],
+            chain_previous=fingerprint1,
+        )
+
+        result = log2.to_dict()
+
+        assert result["chain_previous"] == fingerprint1

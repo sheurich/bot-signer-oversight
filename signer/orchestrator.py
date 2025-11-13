@@ -7,19 +7,24 @@ from typing import List, Optional, Dict, Any
 from .backends.base import SigningBackend, Signature
 from .ceremony import CeremonyLog
 from .identity import OIDCIdentity, StaticKeyIdentity
+from .policy import PolicyEngine, Policy
 
 
 class SigningOrchestrator:
     """Coordinates signing operations across multiple backends."""
 
-    def __init__(self, backends: List[SigningBackend]):
+    def __init__(
+        self, backends: List[SigningBackend], policy_engine: Optional[PolicyEngine] = None
+    ):
         """
         Initialize orchestrator with backends.
 
         Args:
             backends: List of signing backend instances
+            policy_engine: Optional PolicyEngine for applying signing policies
         """
         self.backends = backends
+        self.policy_engine = policy_engine
 
     def _save_signature_files(
         self, artifact_path: str, signatures: List[Signature]
@@ -94,11 +99,30 @@ class SigningOrchestrator:
             CeremonyLog with all signatures
 
         Raises:
-            RuntimeError: If signing fails
+            RuntimeError: If signing fails or policy validation fails
         """
         # Read artifact
         with open(artifact_path, "rb") as f:
             artifact_data = f.read()
+
+        # Apply policy to filter backends if policy engine is configured
+        backends_to_use = self.backends
+        if self.policy_engine:
+            required_formats = self.policy_engine.get_required_backends(artifact_path)
+            if required_formats:
+                # Filter backends to only those required by policy
+                backends_to_use = [
+                    b for b in self.backends if b.get_format() in required_formats
+                ]
+                print(f"Policy requires backends: {', '.join(required_formats)}")
+
+                # Check if all required backends are available
+                available_formats = {b.get_format() for b in backends_to_use}
+                missing_formats = set(required_formats) - available_formats
+                if missing_formats:
+                    raise RuntimeError(
+                        f"Policy requires backends that are not configured: {', '.join(missing_formats)}"
+                    )
 
         # Sign with each backend
         signatures: List[Signature] = []
@@ -106,11 +130,11 @@ class SigningOrchestrator:
         if parallel:
             # Sign in parallel for speed
             with concurrent.futures.ThreadPoolExecutor(
-                max_workers=len(self.backends)
+                max_workers=len(backends_to_use)
             ) as executor:
                 future_to_backend = {
                     executor.submit(backend.sign, artifact_data, identity): backend
-                    for backend in self.backends
+                    for backend in backends_to_use
                 }
 
                 for future in concurrent.futures.as_completed(future_to_backend):
@@ -124,7 +148,7 @@ class SigningOrchestrator:
                         raise
         else:
             # Sign sequentially
-            for backend in self.backends:
+            for backend in backends_to_use:
                 try:
                     sig = backend.sign(artifact_data, identity)
                     signatures.append(sig)
@@ -135,6 +159,18 @@ class SigningOrchestrator:
 
         # Copy signature files to permanent locations
         self._save_signature_files(artifact_path, signatures)
+
+        # Validate signatures meet policy requirements
+        if self.policy_engine:
+            validation_result = self.policy_engine.validate_signatures(
+                artifact_path, signatures
+            )
+            if not validation_result.compliant:
+                violations = "\n".join(f"  - {v}" for v in validation_result.violations)
+                raise RuntimeError(
+                    f"Signatures do not meet policy requirements:\n{violations}"
+                )
+            print("✅ Signatures meet policy requirements")
 
         # Create ceremony log
         ceremony = CeremonyLog(artifact_path, identity, signatures)
@@ -227,6 +263,45 @@ class SigningOrchestrator:
 
         return all_valid
 
+    def generate_compliance_report(
+        self, artifact_path: str, ceremony_log_path: str
+    ) -> Dict[str, Any]:
+        """
+        Generate compliance report for an artifact and its signatures.
+
+        Args:
+            artifact_path: Path to artifact
+            ceremony_log_path: Path to ceremony log
+
+        Returns:
+            Dictionary with compliance report details
+
+        Raises:
+            RuntimeError: If policy engine is not configured
+        """
+        if not self.policy_engine:
+            raise RuntimeError("Policy engine not configured")
+
+        import json
+
+        # Load ceremony log
+        with open(ceremony_log_path, "r") as f:
+            ceremony_data = json.load(f)
+
+        # Reconstruct signature objects
+        signatures = []
+        for sig_data in ceremony_data["signatures"]:
+            sig = Signature(
+                format=sig_data["format"],
+                data=b"",
+                metadata=sig_data,
+                files=sig_data.get("files", {}),
+            )
+            signatures.append(sig)
+
+        # Generate report
+        return self.policy_engine.generate_compliance_report(artifact_path, signatures)
+
     @classmethod
     def from_config(cls, config: Dict[str, Any]) -> "SigningOrchestrator":
         """
@@ -253,4 +328,25 @@ class SigningOrchestrator:
                 SigstoreBackend(config.get("backends", {}).get("cosign"))
             )
 
-        return cls(backends)
+        if config.get("backends", {}).get("intoto", {}).get("enabled"):
+            from .backends.intoto import IntotoBackend
+
+            backends.append(
+                IntotoBackend(config.get("backends", {}).get("intoto"))
+            )
+
+        # Create policy engine if policies are configured
+        policy_engine = None
+        if config.get("policies"):
+            policies = [
+                Policy(
+                    match=p["match"],
+                    require=p["require"],
+                    min_signatures=p.get("min_signatures", 1),
+                    allow_expired=p.get("allow_expired", False),
+                )
+                for p in config["policies"]
+            ]
+            policy_engine = PolicyEngine(policies)
+
+        return cls(backends, policy_engine)

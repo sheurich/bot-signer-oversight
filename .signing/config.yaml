@@ -1,0 +1,21 @@
+# Default configuration for bot-signer-oversight
+
+backends:
+  gpg:
+    enabled: true
+    key_type: Ed25519
+    keyless_mode: true
+    public_key_export: true
+
+  cosign:
+    enabled: true
+    fulcio_url: https://fulcio.sigstore.dev
+    rekor_url: https://rekor.sigstore.dev
+    keyless_mode: true
+
+policies:
+  - match: "*.tar.gz"
+    require: [gpg, cosign]
+
+  - match: "*.txt"
+    require: [gpg]

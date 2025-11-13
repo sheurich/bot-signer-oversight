@@ -1,0 +1,41 @@
+# Example configuration with policy engine
+
+backends:
+  gpg:
+    enabled: true
+    key_type: Ed25519
+
+  cosign:
+    enabled: true
+
+# Policies control which backends are required for different artifacts
+# Policies are evaluated in order - first match wins
+policies:
+  # Release tarballs require both GPG and Cosign signatures
+  - match: "release-*.tar.gz"
+    require:
+      - gpg
+      - cosign
+    min_signatures: 2
+    allow_expired: false
+
+  # Container images require only Cosign
+  - match: "*.tar"
+    require:
+      - cosign
+    min_signatures: 1
+    allow_expired: false
+
+  # Binaries require GPG signature
+  - match: "*.bin"
+    require:
+      - gpg
+    min_signatures: 1
+    allow_expired: false
+
+  # Everything else requires at least one signature
+  - match: "*"
+    require:
+      - gpg
+    min_signatures: 1
+    allow_expired: true
