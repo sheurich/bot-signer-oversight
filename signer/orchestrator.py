@@ -213,6 +213,7 @@ class SigningOrchestrator:
             )
 
             try:
+                print(f"Verifying {backend_format} with files: {resolved_files}")
                 if backend.verify(artifact_data, sig):
                     print(f"✅ {backend_format} signature valid")
                 else:
@@ -220,6 +221,8 @@ class SigningOrchestrator:
                     all_valid = False
             except Exception as e:
                 print(f"❌ {backend_format} verification failed: {e}")
+                import traceback
+                traceback.print_exc()
                 all_valid = False
 
         return all_valid
