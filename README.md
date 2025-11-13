@@ -62,8 +62,8 @@ gh workflow run verify.yml
 
 ```bash
 # Install package
-pip install -e .
-pip install -r requirements.txt
+uv pip install -e .
+uv pip install -r requirements.txt
 
 # Sign artifact (requires GitHub Actions OIDC token)
 signer sign artifact.txt --backends all

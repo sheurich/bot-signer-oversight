@@ -27,7 +27,7 @@ class SigningOrchestrator:
         """
         Copy signature files from temporary locations to permanent locations.
 
-        Updates signature objects with new file paths.
+        Updates signature objects with new file paths and verification commands.
 
         Args:
             artifact_path: Path to the artifact being signed
@@ -38,6 +38,7 @@ class SigningOrchestrator:
 
         for sig in signatures:
             updated_files = {}
+            old_to_new_paths = {}
 
             for file_key, temp_path in sig.files.items():
                 if not temp_path or not Path(temp_path).exists():
@@ -53,12 +54,23 @@ class SigningOrchestrator:
 
                 # Copy file to permanent location
                 shutil.copy2(temp_path, permanent_path)
-                updated_files[file_key] = str(permanent_path)
+                updated_files[file_key] = permanent_filename  # Store relative path
+
+                # Track path mapping for updating verification command
+                old_to_new_paths[Path(temp_path).name] = permanent_filename
 
                 print(f"  Saved {file_key}: {permanent_filename}")
 
             # Update signature object with permanent paths
             sig.files = updated_files
+
+            # Update verification command in metadata to use new file paths
+            if "verification_command" in sig.metadata:
+                verification_cmd = sig.metadata["verification_command"]
+                # Replace old temp filenames with new permanent filenames
+                for old_name, new_name in old_to_new_paths.items():
+                    verification_cmd = verification_cmd.replace(old_name, new_name)
+                sig.metadata["verification_command"] = verification_cmd
 
     def sign_artifact(
         self,
