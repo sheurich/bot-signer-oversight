@@ -174,7 +174,7 @@ class SigningOrchestrator:
             artifact_data = f.read()
 
         # Get artifact directory for resolving relative paths
-        artifact_dir = Path(artifact_path).parent
+        artifact_dir = Path(artifact_path).resolve().parent
 
         # Verify each signature
         all_valid = True
