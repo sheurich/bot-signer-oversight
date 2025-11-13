@@ -1,7 +1,7 @@
 {
   "ceremony_version": "1.0",
   "ceremony_type": "artifact_signing",
-  "timestamp": "2025-11-13T01:21:31.952947+00:00",
+  "timestamp": "2025-11-13T01:23:26.047140+00:00",
   "identity": {
     "type": "oidc",
     "issuer": "https://token.actions.githubusercontent.com",
@@ -11,12 +11,12 @@
       "actor_id": "1778483",
       "aud": "sigstore",
       "base_ref": "",
-      "check_run_id": "55251311378",
+      "check_run_id": "55251411279",
       "event_name": "workflow_dispatch",
       "head_ref": "",
       "iss": "https://token.actions.githubusercontent.com",
       "job_workflow_ref": "sheurich/bot-signer-oversight/.github/workflows/sign-keyless.yml@refs/heads/main",
-      "job_workflow_sha": "b7b3e6a2c579c59a89fb8733af8885890c96e802",
+      "job_workflow_sha": "b5eed512814767cb405156b5b69d8453e1a2bef7",
       "ref": "refs/heads/main",
       "ref_protected": "false",
       "ref_type": "branch",
@@ -26,20 +26,20 @@
       "repository_owner_id": "1778483",
       "repository_visibility": "public",
       "run_attempt": "1",
-      "run_id": "19317327070",
-      "run_number": "8",
+      "run_id": "19317361835",
+      "run_number": "9",
       "runner_environment": "github-hosted",
-      "sha": "b7b3e6a2c579c59a89fb8733af8885890c96e802",
+      "sha": "b5eed512814767cb405156b5b69d8453e1a2bef7",
       "sub": "repo:sheurich/bot-signer-oversight:ref:refs/heads/main",
       "workflow": "Keyless OIDC Signing",
       "workflow_ref": "sheurich/bot-signer-oversight/.github/workflows/sign-keyless.yml@refs/heads/main",
-      "workflow_sha": "b7b3e6a2c579c59a89fb8733af8885890c96e802"
+      "workflow_sha": "b5eed512814767cb405156b5b69d8453e1a2bef7"
     }
   },
   "artifact": {
     "path": "test-artifact.txt",
-    "sha256": "72999b5415172d18c50deb963fbb1b02c585e1932f7ede78d39a8a1ab5c8b236",
-    "sha512": "3ac851de676387e6b309b1ca335ba9b1acb3810785e7cae2c94ee9526c991efb710f4be4769c9f4e1c9217d6638855c13abf6030f2aee44d58eba95972abded9",
+    "sha256": "d867a8e0f298efdfb82294235673427663a84415b2ca489dbe11d458de888955",
+    "sha512": "b27b1c784a3bedd93f6fc327768734b1df1229754d8932b894edc4ea428781dae1b625adba8b67ddb9d4a7fbd992aa237407310fcbd2971ec2012d8e40c67599",
     "size": 84
   },
   "signatures": [
@@ -53,10 +53,11 @@
       "keyless": true,
       "algorithm": "EdDSA",
       "key_type": "Ed25519",
-      "key_fingerprint": "89DBFF147D5A1A599370A6BDBAF8F38FDDFB2298",
-      "key_id": "ephemeral:89DBFF147D5A1A599370A6BDBAF8F38FDDFB2298",
+      "key_fingerprint": "703F8B51362F93BAAE75B18FC8B6A1D32CF1C595",
+      "key_id": "ephemeral:703F8B51362F93BAAE75B18FC8B6A1D32CF1C595",
       "subject": "repo:sheurich/bot-signer-oversight:ref:refs/heads/main",
       "subject_hash": "3aec1f23b11d82ff",
+      "issuer": "https://token.actions.githubusercontent.com",
       "verification_command": "gpg --import test-artifact.txt.gpg.pub && gpg --verify test-artifact.txt.gpg.asc ARTIFACT"
     },
     {
@@ -68,14 +69,16 @@
       "keyless": true,
       "algorithm": "ECDSA",
       "key_type": "P-256",
-      "bundle_file": "/tmp/tmpopdds6g6.bin.bundle",
+      "bundle_file": "/tmp/tmpy87ardn3.bin.bundle",
       "fulcio_url": "https://fulcio.sigstore.dev",
       "rekor_url": "https://rekor.sigstore.dev",
-      "certificate": "LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUhJVENDQnFpZ0F3SUJBZ0lVRXdHYjhXV1JKZUVEa29kWjF6ODdqNlpjVHdjd0NnWUlLb1pJemowRUF3TXcKTnpFVk1CTUdBMVVFQ2hNTWMybG5jM1J2Y21VdVpHVjJNUjR3SEFZRFZRUURFeFZ6YVdkemRHOXlaUzFwYm5SbApjbTFsWkdsaGRHVXdIaGNOTWpVeE1URXpNREV5TVRNeFdoY05NalV4TVRFek1ERXpNVE14V2pBQU1Ga3dFd1lICktvWkl6ajBDQVFZSUtvWkl6ajBEQVFjRFFnQUVGSTRVSCs1NnFST3pVNmhwQ0xMbk83bmJZeGRLZFF6dXdVKzAKUnFZcnZEZTg2NGNqYVR2WDJKY0JQZmhKbDZzR3FqcndwY0VDN3AySFVlYXJnaCsvMmFPQ0JjY3dnZ1hETUE0RwpBMVVkRHdFQi93UUVBd0lIZ0RBVEJnTlZIU1VFRERBS0JnZ3JCZ0VGQlFjREF6QWRCZ05WSFE0RUZnUVU4d2tOCis0UjJmbDR5UXN1RGw3b1lzK0pudlNzd0h3WURWUjBqQkJnd0ZvQVUzOVBwejFZa0VaYjVxTmpwS0ZXaXhpNFkKWkQ4d2NRWURWUjBSQVFIL0JHY3daWVpqYUhSMGNITTZMeTluYVhSb2RXSXVZMjl0TDNOb1pYVnlhV05vTDJKdgpkQzF6YVdkdVpYSXRiM1psY25OcFoyaDBMeTVuYVhSb2RXSXZkMjl5YTJac2IzZHpMM05wWjI0dGEyVjViR1Z6CmN5NTViV3hBY21WbWN5OW9aV0ZrY3k5dFlXbHVNRGtHQ2lzR0FRUUJnNzh3QVFFRUsyaDBkSEJ6T2k4dmRHOXIKWlc0dVlXTjBhVzl1Y3k1bmFYUm9kV0oxYzJWeVkyOXVkR1Z1ZEM1amIyMHdId1lLS3dZQkJBR0R2ekFCQWdRUgpkMjl5YTJac2IzZGZaR2x6Y0dGMFkyZ3dOZ1lLS3dZQkJBR0R2ekFCQXdRb1lqZGlNMlUyWVRKak5UYzVZelU1CllUZzVabUk0TnpNellXWTRPRGcxT0Rrd1l6azJaVGd3TWpBaUJnb3JCZ0VFQVlPL01BRUVCQlJMWlhsc1pYTnoKSUU5SlJFTWdVMmxuYm1sdVp6QXJCZ29yQmdFRUFZTy9NQUVGQkIxemFHVjFjbWxqYUM5aWIzUXRjMmxuYm1WeQpMVzkyWlhKemFXZG9kREFkQmdvckJnRUVBWU8vTUFFR0JBOXlaV1p6TDJobFlXUnpMMjFoYVc0d093WUtLd1lCCkJBR0R2ekFCQ0FRdERDdG9kSFJ3Y3pvdkwzUnZhMlZ1TG1GamRHbHZibk11WjJsMGFIVmlkWE5sY21OdmJuUmwKYm5RdVkyOXRNSE1HQ2lzR0FRUUJnNzh3QVFrRVpReGphSFIwY0hNNkx5OW5hWFJvZFdJdVkyOXRMM05vWlhWeQphV05vTDJKdmRDMXphV2R1WlhJdGIzWmxjbk5wWjJoMEx5NW5hWFJvZFdJdmQyOXlhMlpzYjNkekwzTnBaMjR0CmEyVjViR1Z6Y3k1NWJXeEFjbVZtY3k5b1pXRmtjeTl0WVdsdU1EZ0dDaXNHQVFRQmc3OHdBUW9FS2d3b1lqZGkKTTJVMllUSmpOVGM1WXpVNVlUZzVabUk0TnpNellXWTRPRGcxT0Rrd1l6azJaVGd3TWpBZEJnb3JCZ0VFQVlPLwpNQUVMQkE4TURXZHBkR2gxWWkxb2IzTjBaV1F3UUFZS0t3WUJCQUdEdnpBQkRBUXlEREJvZEhSd2N6b3ZMMmRwCmRHaDFZaTVqYjIwdmMyaGxkWEpwWTJndlltOTBMWE5wWjI1bGNpMXZkbVZ5YzJsbmFIUXdPQVlLS3dZQkJBR0QKdnpBQkRRUXFEQ2hpTjJJelpUWmhNbU0xTnpsak5UbGhPRGxtWWpnM016Tmhaamc0T0RVNE9UQmpPVFpsT0RBeQpNQjhHQ2lzR0FRUUJnNzh3QVE0RUVRd1BjbVZtY3k5b1pXRmtjeTl0WVdsdU1Cb0dDaXNHQVFRQmc3OHdBUThFCkRBd0tNVEEyT1RRek5EY3lOakFyQmdvckJnRUVBWU8vTUFFUUJCME1HMmgwZEhCek9pOHZaMmwwYUhWaUxtTnYKYlM5emFHVjFjbWxqYURBWEJnb3JCZ0VFQVlPL01BRVJCQWtNQnpFM056ZzBPRE13Y3dZS0t3WUJCQUdEdnpBQgpFZ1JsREdOb2RIUndjem92TDJkcGRHaDFZaTVqYjIwdmMyaGxkWEpwWTJndlltOTBMWE5wWjI1bGNpMXZkbVZ5CmMybG5hSFF2TG1kcGRHaDFZaTkzYjNKclpteHZkM012YzJsbmJpMXJaWGxzWlhOekxubHRiRUJ5WldaekwyaGwKWVdSekwyMWhhVzR3T0FZS0t3WUJCQUdEdnpBQkV3UXFEQ2hpTjJJelpUWmhNbU0xTnpsak5UbGhPRGxtWWpnMwpNek5oWmpnNE9EVTRPVEJqT1RabE9EQXlNQ0VHQ2lzR0FRUUJnNzh3QVJRRUV3d1JkMjl5YTJac2IzZGZaR2x6CmNHRjBZMmd3WkFZS0t3WUJCQUdEdnpBQkZRUldERlJvZEhSd2N6b3ZMMmRwZEdoMVlpNWpiMjB2YzJobGRYSnAKWTJndlltOTBMWE5wWjI1bGNpMXZkbVZ5YzJsbmFIUXZZV04wYVc5dWN5OXlkVzV6THpFNU16RTNNekkzTURjdwpMMkYwZEdWdGNIUnpMekV3RmdZS0t3WUJCQUdEdnpBQkZnUUlEQVp3ZFdKc2FXTXdnWW9HQ2lzR0FRUUIxbmtDCkJBSUVmQVI2QUhnQWRnRGRQVEJxeHNjUk1tTVpIaHlaWnpjQ29rcGV1TjQ4cmYrSGluS0FMeW51amdBQUFacDYKemE1ckFBQUVBd0JITUVVQ0lIcnJxUzEySlY4QWVGVzZzcS9raXNsTUVUNkQvZ1dkT1JuN0lZRmZHcE04QWlFQQpnYkV5RVlHaWhLc05WWDZoZW51Qy9LWDYvMkwwSWt0L1JKaUEyNWUrY1NZd0NnWUlLb1pJemowRUF3TURad0F3ClpBSXdVT2szYWZKRFRqczdNS2x5bGRGaWgzNjZ1UkdnaktpRnROczVBS2JUZW5VZWdDZnphbXFnWXo2MDlxZDYKdWc3VUFqQk9kdTFUUzdEZFhpQ01RdTQxeU03MXBuT3lDRDEzRlZCM0hNMi83eWtBR0xuanVBY2ZBYjZGQTdSdQpEellrbmtFPQotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg==",
-      "rekor_index": 698713348,
-      "rekor_integrated_time": 1762996891,
-      "verification_command": "cosign verify-blob --bundle test-artifact.txt.cosign.bundle ARTIFACT"
+      "subject": "repo:sheurich/bot-signer-oversight:ref:refs/heads/main",
+      "issuer": "https://token.actions.githubusercontent.com",
+      "certificate": "LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUhJekNDQnFtZ0F3SUJBZ0lVSnYzWklUdG5DQkp6RmkrUndRaTgxbkYwVUlNd0NnWUlLb1pJemowRUF3TXcKTnpFVk1CTUdBMVVFQ2hNTWMybG5jM1J2Y21VdVpHVjJNUjR3SEFZRFZRUURFeFZ6YVdkemRHOXlaUzFwYm5SbApjbTFsWkdsaGRHVXdIaGNOTWpVeE1URXpNREV5TXpJMVdoY05NalV4TVRFek1ERXpNekkxV2pBQU1Ga3dFd1lICktvWkl6ajBDQVFZSUtvWkl6ajBEQVFjRFFnQUV5WXlLZE50UXJock0zY0huN0VxNlBMT3ErNGJDTW54RlF1WFMKd3YxS05VWW04VlZaSFk4MlprMXFhcnEyRWZQZjlnamdFVW91NDVIMm5tUzVpMWlEZzZPQ0JjZ3dnZ1hFTUE0RwpBMVVkRHdFQi93UUVBd0lIZ0RBVEJnTlZIU1VFRERBS0JnZ3JCZ0VGQlFjREF6QWRCZ05WSFE0RUZnUVU3UE1VCmV6U2FzNVFXR010SGVmSG5ma1MvL2NFd0h3WURWUjBqQkJnd0ZvQVUzOVBwejFZa0VaYjVxTmpwS0ZXaXhpNFkKWkQ4d2NRWURWUjBSQVFIL0JHY3daWVpqYUhSMGNITTZMeTluYVhSb2RXSXVZMjl0TDNOb1pYVnlhV05vTDJKdgpkQzF6YVdkdVpYSXRiM1psY25OcFoyaDBMeTVuYVhSb2RXSXZkMjl5YTJac2IzZHpMM05wWjI0dGEyVjViR1Z6CmN5NTViV3hBY21WbWN5OW9aV0ZrY3k5dFlXbHVNRGtHQ2lzR0FRUUJnNzh3QVFFRUsyaDBkSEJ6T2k4dmRHOXIKWlc0dVlXTjBhVzl1Y3k1bmFYUm9kV0oxYzJWeVkyOXVkR1Z1ZEM1amIyMHdId1lLS3dZQkJBR0R2ekFCQWdRUgpkMjl5YTJac2IzZGZaR2x6Y0dGMFkyZ3dOZ1lLS3dZQkJBR0R2ekFCQXdRb1lqVmxaV1ExTVRJNE1UUTNOamRqCllqUXdOVEUxTm1JMVlqWTVaRGcwTlRObE1XRXlZbVZtTnpBaUJnb3JCZ0VFQVlPL01BRUVCQlJMWlhsc1pYTnoKSUU5SlJFTWdVMmxuYm1sdVp6QXJCZ29yQmdFRUFZTy9NQUVGQkIxemFHVjFjbWxqYUM5aWIzUXRjMmxuYm1WeQpMVzkyWlhKemFXZG9kREFkQmdvckJnRUVBWU8vTUFFR0JBOXlaV1p6TDJobFlXUnpMMjFoYVc0d093WUtLd1lCCkJBR0R2ekFCQ0FRdERDdG9kSFJ3Y3pvdkwzUnZhMlZ1TG1GamRHbHZibk11WjJsMGFIVmlkWE5sY21OdmJuUmwKYm5RdVkyOXRNSE1HQ2lzR0FRUUJnNzh3QVFrRVpReGphSFIwY0hNNkx5OW5hWFJvZFdJdVkyOXRMM05vWlhWeQphV05vTDJKdmRDMXphV2R1WlhJdGIzWmxjbk5wWjJoMEx5NW5hWFJvZFdJdmQyOXlhMlpzYjNkekwzTnBaMjR0CmEyVjViR1Z6Y3k1NWJXeEFjbVZtY3k5b1pXRmtjeTl0WVdsdU1EZ0dDaXNHQVFRQmc3OHdBUW9FS2d3b1lqVmwKWldRMU1USTRNVFEzTmpkallqUXdOVEUxTm1JMVlqWTVaRGcwTlRObE1XRXlZbVZtTnpBZEJnb3JCZ0VFQVlPLwpNQUVMQkE4TURXZHBkR2gxWWkxb2IzTjBaV1F3UUFZS0t3WUJCQUdEdnpBQkRBUXlEREJvZEhSd2N6b3ZMMmRwCmRHaDFZaTVqYjIwdmMyaGxkWEpwWTJndlltOTBMWE5wWjI1bGNpMXZkbVZ5YzJsbmFIUXdPQVlLS3dZQkJBR0QKdnpBQkRRUXFEQ2hpTldWbFpEVXhNamd4TkRjMk4yTmlOREExTVRVMllqVmlOamxrT0RRMU0yVXhZVEppWldZMwpNQjhHQ2lzR0FRUUJnNzh3QVE0RUVRd1BjbVZtY3k5b1pXRmtjeTl0WVdsdU1Cb0dDaXNHQVFRQmc3OHdBUThFCkRBd0tNVEEyT1RRek5EY3lOakFyQmdvckJnRUVBWU8vTUFFUUJCME1HMmgwZEhCek9pOHZaMmwwYUhWaUxtTnYKYlM5emFHVjFjbWxqYURBWEJnb3JCZ0VFQVlPL01BRVJCQWtNQnpFM056ZzBPRE13Y3dZS0t3WUJCQUdEdnpBQgpFZ1JsREdOb2RIUndjem92TDJkcGRHaDFZaTVqYjIwdmMyaGxkWEpwWTJndlltOTBMWE5wWjI1bGNpMXZkbVZ5CmMybG5hSFF2TG1kcGRHaDFZaTkzYjNKclpteHZkM012YzJsbmJpMXJaWGxzWlhOekxubHRiRUJ5WldaekwyaGwKWVdSekwyMWhhVzR3T0FZS0t3WUJCQUdEdnpBQkV3UXFEQ2hpTldWbFpEVXhNamd4TkRjMk4yTmlOREExTVRVMgpZalZpTmpsa09EUTFNMlV4WVRKaVpXWTNNQ0VHQ2lzR0FRUUJnNzh3QVJRRUV3d1JkMjl5YTJac2IzZGZaR2x6CmNHRjBZMmd3WkFZS0t3WUJCQUdEdnpBQkZRUldERlJvZEhSd2N6b3ZMMmRwZEdoMVlpNWpiMjB2YzJobGRYSnAKWTJndlltOTBMWE5wWjI1bGNpMXZkbVZ5YzJsbmFIUXZZV04wYVc5dWN5OXlkVzV6THpFNU16RTNNell4T0RNMQpMMkYwZEdWdGNIUnpMekV3RmdZS0t3WUJCQUdEdnpBQkZnUUlEQVp3ZFdKc2FXTXdnWXNHQ2lzR0FRUUIxbmtDCkJBSUVmUVI3QUhrQWR3RGRQVEJxeHNjUk1tTVpIaHlaWnpjQ29rcGV1TjQ4cmYrSGluS0FMeW51amdBQUFacDYKejJ0TUFBQUVBd0JJTUVZQ0lRRGJIRkF4cmxuVzRPajFiZnViZEN1Q2VxWnNFZTk1cWw1bXViN3NodDhDSWdJaApBSVNjTEhsNDZ3NnZkUkV4M28wM0JpbjRkd1ZDam1XdEtZWVNidGd2VmZONU1Bb0dDQ3FHU000OUJBTURBMmdBCk1HVUNNUUQzaXJKbFhkWlRGN0lLWHE4dDh6bUtPZi9pOVczVm1Yd05qTGh6OW0xM1U4bjBjZmtxZFpjTDFCQXoKTkVHcnhoWUNNSDNXbFBCc0Nkd1ZvbFNEdG1FV2V6UXd3VDkyMkJQYTByRjNCOGtiOG9rbjZRd3pxWVNxWWF4RwpjVXEzc3BmMmVBPT0KLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQo=",
+      "rekor_index": 698714499,
+      "rekor_integrated_time": 1762997005,
+      "verification_command": "cosign verify-blob --bundle test-artifact.txt.cosign.bundle --certificate-identity repo:sheurich/bot-signer-oversight:ref:refs/heads/main --certificate-oidc-issuer https://token.actions.githubusercontent.com ARTIFACT"
     }
   ],
-  "workflow_run": "https://github.com/sheurich/bot-signer-oversight/actions/runs/19317327070"
+  "workflow_run": "https://github.com/sheurich/bot-signer-oversight/actions/runs/19317361835"
 }
