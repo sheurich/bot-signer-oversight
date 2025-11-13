@@ -11,7 +11,7 @@ echo "Identity: $(jq -r .identity.subject $CEREMONY)"
 echo "======================================"
 
 echo "Checking gpg signature..."
-if gpg --import tmpc2lasocr.bin.pub && gpg --verify tmpc2lasocr.bin.asc ARTIFACT 2>&1 | tee /tmp/verify-gpg.log; then
+if gpg --import test-artifact.txt.gpg.pub && gpg --verify test-artifact.txt.gpg.asc ARTIFACT 2>&1 | tee /tmp/verify-gpg.log; then
     echo "✅ gpg signature valid"
 else
     echo "❌ gpg signature FAILED"
@@ -20,7 +20,7 @@ else
 fi
 
 echo "Checking cosign signature..."
-if cosign verify-blob --bundle tmp5wkdg3v0.bin.bundle ARTIFACT 2>&1 | tee /tmp/verify-cosign.log; then
+if cosign verify-blob --bundle test-artifact.txt.cosign.bundle ARTIFACT 2>&1 | tee /tmp/verify-cosign.log; then
     echo "✅ cosign signature valid"
 else
     echo "❌ cosign signature FAILED"
