@@ -1,6 +1,7 @@
 """Signing orchestrator for coordinating multiple backends."""
 
 import concurrent.futures
+import shutil
 from pathlib import Path
 from typing import List, Optional, Dict, Any
 from .backends.base import SigningBackend, Signature
@@ -19,6 +20,45 @@ class SigningOrchestrator:
             backends: List of signing backend instances
         """
         self.backends = backends
+
+    def _save_signature_files(
+        self, artifact_path: str, signatures: List[Signature]
+    ) -> None:
+        """
+        Copy signature files from temporary locations to permanent locations.
+
+        Updates signature objects with new file paths.
+
+        Args:
+            artifact_path: Path to the artifact being signed
+            signatures: List of signatures to update
+        """
+        artifact_dir = Path(artifact_path).parent
+        artifact_name = Path(artifact_path).name
+
+        for sig in signatures:
+            updated_files = {}
+
+            for file_key, temp_path in sig.files.items():
+                if not temp_path or not Path(temp_path).exists():
+                    continue
+
+                # Determine permanent file path
+                temp_file = Path(temp_path)
+                suffix = temp_file.suffix  # e.g., .asc, .pub, .bundle
+
+                # Generate permanent filename
+                permanent_filename = f"{artifact_name}.{sig.format}{suffix}"
+                permanent_path = artifact_dir / permanent_filename
+
+                # Copy file to permanent location
+                shutil.copy2(temp_path, permanent_path)
+                updated_files[file_key] = str(permanent_path)
+
+                print(f"  Saved {file_key}: {permanent_filename}")
+
+            # Update signature object with permanent paths
+            sig.files = updated_files
 
     def sign_artifact(
         self,
@@ -80,6 +120,9 @@ class SigningOrchestrator:
                 except Exception as e:
                     print(f"❌ Failed to sign with {backend.get_format()}: {e}")
                     raise
+
+        # Copy signature files to permanent locations
+        self._save_signature_files(artifact_path, signatures)
 
         # Create ceremony log
         ceremony = CeremonyLog(artifact_path, identity, signatures)
