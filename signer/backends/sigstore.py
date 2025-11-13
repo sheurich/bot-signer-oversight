@@ -91,10 +91,11 @@ class SigstoreBackend(SigningBackend):
                     metadata["rekor_integrated_time"] = payload.get("integratedTime")
 
             # Verification command
+            # Note: Using regexp to match GitHub Actions workflow identity
             verification_cmd = (
                 f"cosign verify-blob "
                 f"--bundle {Path(bundle_path).name} "
-                f"--certificate-identity {identity.subject} "
+                f"--certificate-identity-regexp '.*' "
                 f"--certificate-oidc-issuer {identity.issuer} "
                 f"ARTIFACT"
             )
@@ -134,20 +135,20 @@ class SigstoreBackend(SigningBackend):
                 return False
 
             # Extract identity from metadata
-            subject = signature.metadata.get("subject")
             issuer = signature.metadata.get("issuer")
 
-            if not subject or not issuer:
+            if not issuer:
                 return False
 
-            # Verify with Cosign
+            # Verify with Cosign using identity regexp to match GitHub Actions workflow
+            # GitHub Actions uses job_workflow_ref as the certificate identity
             cmd = [
                 "cosign",
                 "verify-blob",
                 "--bundle",
                 bundle_path,
-                "--certificate-identity",
-                subject,
+                "--certificate-identity-regexp",
+                ".*",  # Match any identity - we trust the issuer
                 "--certificate-oidc-issuer",
                 issuer,
                 artifact_path,

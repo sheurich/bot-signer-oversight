@@ -162,8 +162,9 @@ class GPGKeylessBackend(SigningBackend):
                     return False
 
                 # Verify signature
-                with open(artifact_path, "rb") as f:
-                    verified = gpg.verify_file(f, signature_path)
+                # For detached signatures, pass signature path as data_filename parameter
+                with open(signature_path, "rb") as sig_file:
+                    verified = gpg.verify_file(sig_file, data_filename=artifact_path)
 
                 if not verified.valid:
                     print(f"GPG verification failed:")
