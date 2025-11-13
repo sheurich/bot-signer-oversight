@@ -161,6 +161,9 @@ class SigningOrchestrator:
         with open(artifact_path, "rb") as f:
             artifact_data = f.read()
 
+        # Get artifact directory for resolving relative paths
+        artifact_dir = Path(artifact_path).parent
+
         # Verify each signature
         all_valid = True
         for sig_data in ceremony_data["signatures"]:
@@ -177,12 +180,24 @@ class SigningOrchestrator:
                 print(f"⚠️  No backend found for format: {backend_format}")
                 continue
 
+            # Resolve signature file paths relative to artifact directory
+            resolved_files = {}
+            for file_key, file_path in sig_data.get("files", {}).items():
+                if file_path:
+                    # If path is relative, resolve it relative to artifact directory
+                    path_obj = Path(file_path)
+                    if not path_obj.is_absolute():
+                        resolved_path = artifact_dir / file_path
+                    else:
+                        resolved_path = path_obj
+                    resolved_files[file_key] = str(resolved_path)
+
             # Reconstruct signature object
             sig = Signature(
                 format=sig_data["format"],
                 data=b"",  # Not needed for verification
                 metadata=sig_data,
-                files=sig_data.get("files", {}),
+                files=resolved_files,
             )
 
             try:
