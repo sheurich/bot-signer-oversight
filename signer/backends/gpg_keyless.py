@@ -158,11 +158,19 @@ class GPGKeylessBackend(SigningBackend):
                 # Get signature path
                 signature_path = signature.files.get("signature")
                 if not signature_path or not Path(signature_path).exists():
+                    print(f"GPG: Signature file not found: {signature_path}")
                     return False
 
                 # Verify signature
                 with open(artifact_path, "rb") as f:
                     verified = gpg.verify_file(f, signature_path)
+
+                if not verified.valid:
+                    print(f"GPG verification failed:")
+                    print(f"  Status: {verified.status}")
+                    print(f"  Stderr: {verified.stderr}")
+                    print(f"  Trust level: {verified.trust_level}")
+                    print(f"  Trust text: {verified.trust_text}")
 
                 return verified.valid
 

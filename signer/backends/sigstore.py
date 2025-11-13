@@ -159,6 +159,13 @@ class SigstoreBackend(SigningBackend):
                 text=True,
             )
 
+            if result.returncode != 0:
+                print(f"Cosign verification failed:")
+                print(f"  Command: {' '.join(cmd)}")
+                print(f"  Return code: {result.returncode}")
+                print(f"  Stdout: {result.stdout}")
+                print(f"  Stderr: {result.stderr}")
+
             return result.returncode == 0
 
         finally:
