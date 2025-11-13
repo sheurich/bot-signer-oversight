@@ -52,7 +52,7 @@ class GPGKeylessBackend(SigningBackend):
                 Key-Usage: sign
                 Name-Real: {identity.subject}
                 Name-Email: {identity.subject_hash}@oidc.sigstore.dev
-                Expire-Date: 10m
+                Expire-Date: 7d
                 %commit
             """
 
@@ -105,6 +105,7 @@ class GPGKeylessBackend(SigningBackend):
                     "key_id": f"ephemeral:{key_fingerprint}",
                     "subject": identity.subject,
                     "subject_hash": identity.subject_hash,
+                    "issuer": identity.issuer,
                     "verification_command": f"gpg --import {Path(public_key_path).name} && gpg --verify {Path(signature_path).name} ARTIFACT",
                 }
 

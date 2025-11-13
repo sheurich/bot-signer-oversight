@@ -75,6 +75,8 @@ class SigstoreBackend(SigningBackend):
                 "bundle_file": bundle_path,
                 "fulcio_url": self.fulcio_url,
                 "rekor_url": self.rekor_url,
+                "subject": identity.subject,
+                "issuer": identity.issuer,
             }
 
             # Extract certificate and Rekor info if available
@@ -89,7 +91,13 @@ class SigstoreBackend(SigningBackend):
                     metadata["rekor_integrated_time"] = payload.get("integratedTime")
 
             # Verification command
-            verification_cmd = f"cosign verify-blob --bundle {Path(bundle_path).name} ARTIFACT"
+            verification_cmd = (
+                f"cosign verify-blob "
+                f"--bundle {Path(bundle_path).name} "
+                f"--certificate-identity {identity.subject} "
+                f"--certificate-oidc-issuer {identity.issuer} "
+                f"ARTIFACT"
+            )
 
             metadata["verification_command"] = verification_cmd
 
@@ -125,12 +133,23 @@ class SigstoreBackend(SigningBackend):
             if not bundle_path or not Path(bundle_path).exists():
                 return False
 
+            # Extract identity from metadata
+            subject = signature.metadata.get("subject")
+            issuer = signature.metadata.get("issuer")
+
+            if not subject or not issuer:
+                return False
+
             # Verify with Cosign
             cmd = [
                 "cosign",
                 "verify-blob",
                 "--bundle",
                 bundle_path,
+                "--certificate-identity",
+                subject,
+                "--certificate-oidc-issuer",
+                issuer,
                 artifact_path,
             ]
 
