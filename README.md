@@ -128,8 +128,6 @@ signer/                    # Python package
 .github/workflows/
   sign-keyless.yml         # Keyless OIDC signing workflow
   verify.yml               # Automated signature verification
-  init.yml                 # Legacy initialization (deprecated)
-  test.yml                 # Legacy tests (deprecated)
 
 docs/                      # Architecture documentation
 setup.py                   # Package configuration
