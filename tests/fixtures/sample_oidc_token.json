@@ -1,0 +1,21 @@
+{
+  "iss": "https://token.actions.githubusercontent.com",
+  "sub": "repo:owner/repo:ref:refs/heads/main",
+  "aud": "sigstore",
+  "exp": 1700000000,
+  "iat": 1699996400,
+  "repository": "owner/repo",
+  "repository_owner": "owner",
+  "repository_id": "123456",
+  "workflow": ".github/workflows/sign.yml",
+  "workflow_ref": "owner/repo/.github/workflows/sign.yml@refs/heads/main",
+  "ref": "refs/heads/main",
+  "ref_type": "branch",
+  "sha": "abc123def456789",
+  "run_id": "987654321",
+  "run_number": "42",
+  "run_attempt": "1",
+  "job_workflow_ref": "owner/repo/.github/workflows/sign.yml@refs/heads/main",
+  "actor": "bot-user",
+  "actor_id": "789012"
+}
