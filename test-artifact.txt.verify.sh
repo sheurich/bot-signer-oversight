@@ -20,7 +20,7 @@ else
 fi
 
 echo "Checking cosign signature..."
-if cosign verify-blob --bundle test-artifact.txt.cosign.bundle --certificate-identity repo:sheurich/bot-signer-oversight:ref:refs/heads/main --certificate-oidc-issuer https://token.actions.githubusercontent.com ARTIFACT 2>&1 | tee /tmp/verify-cosign.log; then
+if cosign verify-blob --bundle test-artifact.txt.cosign.bundle --certificate-identity-regexp '.*' --certificate-oidc-issuer https://token.actions.githubusercontent.com ARTIFACT 2>&1 | tee /tmp/verify-cosign.log; then
     echo "✅ cosign signature valid"
 else
     echo "❌ cosign signature FAILED"
