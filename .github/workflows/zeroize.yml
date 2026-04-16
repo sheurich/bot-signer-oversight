@@ -1,0 +1,74 @@
+name: Zeroize
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  secrets: write
+
+jobs:
+  zeroize:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Archive keys and changelog
+        run: |
+          TIMESTAMP=$(date -u +"%Y-%m-%d-%H%M%S")
+          ARCHIVE_DIR="archive"
+          ARCHIVE_FILE="$ARCHIVE_DIR/archived-keys-$TIMESTAMP.md"
+          mkdir -p "$ARCHIVE_DIR"
+
+          {
+            echo "# Archived Keys and Changelog - $TIMESTAMP"
+            echo ""
+            echo "## Cosign Public Key (\`cosign.pub\`)"
+            echo '```'
+            cat cosign.pub
+            echo '```'
+            echo ""
+            echo "## PGP Public Key (\`pgp.pub\`)"
+            echo '```'
+            cat pgp.pub
+            echo '```'
+            echo ""
+            echo "## Changelog (\`changelog.txt\`)"
+            echo '```'
+            cat changelog.txt
+            echo '```'
+          } > "$ARCHIVE_FILE"
+
+          rm cosign.pub pgp.pub changelog.txt
+
+      - name: Configure Git and GPG
+        run: |
+          echo "${{ secrets.PGP_PRIVATE_KEY }}" | gpg --batch --import
+          KEY_FPR=$(gpg --list-secret-keys --keyid-format LONG "github-actions[bot]" | grep -A 1 "sec" | tail -1 | tr -d ' ')
+          git config --global user.signingkey "$KEY_FPR"
+          git config --global gpg.program gpg
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config --global commit.gpgsign true
+
+      - name: Commit and push archive
+        run: |
+          git add .
+          git commit -S -m "chore: archive public keys and changelog
+
+          This commit archives the existing public keys (cosign.pub, pgp.pub)
+          and the changelog.txt into a single markdown file in the /archive
+          directory.
+
+          The original files have been removed."
+          git push origin main
+
+      - name: Destroy private keys
+        env:
+          GH_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+        run: |
+          echo "Destroying private keys in GitHub secrets..."
+          gh secret set PGP_PRIVATE_KEY --body "ZEROIZED - $(date -u)"
+          gh secret set COSIGN_PRIVATE_KEY --body "ZEROIZED - $(date -u)"
+          echo "Private keys have been zeroized."
